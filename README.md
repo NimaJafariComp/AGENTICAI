@@ -84,7 +84,7 @@ Default provider config:
 LLM_PROVIDER=ollama
 OLLAMA_MODE=local
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1:8b
+OLLAMA_MODEL=llama3.2:1b
 BACKEND_BASE_URL=http://localhost:8000
 STT_PROVIDER=onnx_asr
 STT_MODEL=nemo-parakeet-tdt-0.6b-v3
@@ -92,6 +92,13 @@ STT_LANGUAGE=en
 STT_MAX_DURATION_SECONDS=20
 STT_ENABLED=true
 ```
+
+Ollama setup notes:
+
+- local Ollama needs **no API key** — it just needs the model pulled to your machine
+- pull the default model once: `ollama pull llama3.2:1b` (small and fast; the LLM only writes the wording, the policy engine makes every decision)
+- the backend health-checks Ollama and verifies the model is present; if Ollama is down or the model is not pulled, it falls back to `MockProvider` and records a `provider_fallback` trace
+- cloud-capable Ollama: point `OLLAMA_BASE_URL` at the endpoint; auth (if any) is handled by that endpoint, not by this app
 
 To force mock mode:
 

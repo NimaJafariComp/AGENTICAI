@@ -35,9 +35,21 @@ class OllamaProvider(BaseProvider):
         try:
             with self._client() as client:
                 response = client.get("/api/tags")
-            return response.status_code == 200
+            if response.status_code != 200:
+                return False
+            return self._model_is_pulled(response.json())
         except httpx.HTTPError:
             return False
+
+    def _model_is_pulled(self, tags_data: dict[str, Any]) -> bool:
+        models = tags_data.get("models") or []
+        available = {str(entry.get("name", "")) for entry in models}
+        # Ollama reports tagged names like "llama3.2:3b"; accept an untagged
+        # match too so "llama3.2" resolves against "llama3.2:latest".
+        if self._model in available:
+            return True
+        base_names = {name.split(":", 1)[0] for name in available}
+        return self._model.split(":", 1)[0] in base_names
 
     def chat(
         self,

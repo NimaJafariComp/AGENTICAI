@@ -43,6 +43,14 @@ class TranscriptionService:
             os.getenv("STT_MAX_DURATION_SECONDS", "20")
         )
         self.enabled = enabled if enabled is not None else os.getenv("STT_ENABLED", "true").lower() == "true"
+        # Pin the onnxruntime execution provider. The default auto-selection picks
+        # CoreMLExecutionProvider on macOS, which fails to initialise this model
+        # ("model_path must not be empty"). CPU is reliable and fast enough here.
+        self.execution_providers = [
+            value.strip()
+            for value in os.getenv("STT_EXECUTION_PROVIDERS", "CPUExecutionProvider").split(",")
+            if value.strip()
+        ]
         self._loader = loader
         self._model: Any | None = None
 
@@ -98,7 +106,7 @@ class TranscriptionService:
                 raise TranscriptionError(
                     "Local speech-to-text dependency is not installed. Install requirements and retry."
                 ) from exc
-            loader = onnx_asr.load_model
+            loader = lambda name: onnx_asr.load_model(name, providers=self.execution_providers)
 
         try:
             self._model = loader(self.model_name)

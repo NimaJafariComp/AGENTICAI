@@ -17,7 +17,7 @@ def test_ollama_provider_uses_native_chat_api() -> None:
             assert payload["stream"] is False
             return httpx.Response(200, json={"message": {"content": "Ollama reply"}})
         if request.url.path == "/api/tags":
-            return httpx.Response(200, json={"models": []})
+            return httpx.Response(200, json={"models": [{"name": "llama3.1:8b"}]})
         return httpx.Response(404)
 
     provider = OllamaProvider(
@@ -30,6 +30,21 @@ def test_ollama_provider_uses_native_chat_api() -> None:
     response = provider.chat(messages=[{"role": "user", "content": "hello"}])
     assert response.provider_name == "ollama"
     assert response.content == "Ollama reply"
+
+
+def test_ollama_unavailable_when_model_not_pulled() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/tags":
+            return httpx.Response(200, json={"models": [{"name": "llama3.2:3b"}]})
+        return httpx.Response(404)
+
+    provider = OllamaProvider(
+        base_url="http://ollama.local",
+        model="llama3.1:8b",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert provider.is_available() is False
 
 
 def test_llm_client_uses_mock_provider_directly(monkeypatch) -> None:
