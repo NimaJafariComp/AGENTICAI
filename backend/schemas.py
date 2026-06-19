@@ -238,3 +238,68 @@ class AgentTurnResult(BaseModel):
     decision_type: str | None = None
     decision_id: str | None = None
     tool_outputs: dict[str, object] = Field(default_factory=dict)
+
+
+class CreateChatSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    customer_email: str | None = None
+
+
+class ChatSessionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    customer_email: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChatMessageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1)
+
+
+class TraceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    trace_id: str
+    session_id: str
+    event_type: str
+    payload: object
+    created_at: datetime
+
+
+class ToolCallResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_call_id: str
+    session_id: str
+    tool_name: str
+    tool_input: object
+    tool_output: object | None = None
+    status: str
+    created_at: datetime
+
+
+class FinalDecisionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision_id: str
+    session_id: str
+    decision_type: str
+    used: bool
+    request_fingerprint: str
+    reason_codes: list[str]
+    created_at: datetime
+    used_at: datetime | None = None
+
+
+class SessionDetailResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session: ChatSessionResponse
+    traces: list[TraceResponse]
+    tool_calls: list[ToolCallResponse]
+    final_decisions: list[FinalDecisionResponse]

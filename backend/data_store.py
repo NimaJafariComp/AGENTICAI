@@ -198,6 +198,26 @@ class DataStore:
             updated_at=self._parse_timestamp(row["updated_at"]),
         )
 
+    def list_sessions(self) -> list[RuntimeSession]:
+        with self._connect_runtime_db() as connection:
+            rows = connection.execute(
+                """
+                SELECT session_id, customer_email, created_at, updated_at
+                FROM sessions
+                ORDER BY created_at ASC
+                """
+            ).fetchall()
+
+        return [
+            RuntimeSession(
+                session_id=row["session_id"],
+                customer_email=row["customer_email"],
+                created_at=self._parse_timestamp(row["created_at"]),
+                updated_at=self._parse_timestamp(row["updated_at"]),
+            )
+            for row in rows
+        ]
+
     def list_traces(self, session_id: str | None = None) -> list[RuntimeTrace]:
         query = """
             SELECT trace_id, session_id, event_type, payload_json, created_at
@@ -222,6 +242,28 @@ class DataStore:
             )
             for row in rows
         ]
+
+    def get_trace(self, trace_id: str) -> RuntimeTrace:
+        with self._connect_runtime_db() as connection:
+            row = connection.execute(
+                """
+                SELECT trace_id, session_id, event_type, payload_json, created_at
+                FROM traces
+                WHERE trace_id = ?
+                """,
+                (trace_id,),
+            ).fetchone()
+
+        if row is None:
+            raise DataStoreError(f"Trace not found: {trace_id}")
+
+        return RuntimeTrace(
+            trace_id=row["trace_id"],
+            session_id=row["session_id"],
+            event_type=row["event_type"],
+            payload_json=row["payload_json"],
+            created_at=self._parse_timestamp(row["created_at"]),
+        )
 
     def append_trace(self, payload: CreateRuntimeTraceInput) -> RuntimeTrace:
         timestamp = self._utc_now()

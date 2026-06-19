@@ -4,7 +4,7 @@ Local demo app for an AI customer support agent that handles e-commerce refund r
 
 ## Status
 
-Current state: `Milestone 7` agent loop complete.
+Current state: `Milestone 8` API routes complete.
 
 Included:
 
@@ -21,11 +21,11 @@ Included:
 - protected refund tools with `decision_id` enforcement
 - Ollama default provider adapter with direct mock mode and fallback logging
 - simple refund agent loop with tool orchestration
+- API routes for chat, policy, lookups, and admin trace reads
 
 Not included yet:
 
 - refund tool execution
-- API routes for end-user chat
 - UI wiring to the agent loop
 
 ## Planned architecture
@@ -117,5 +117,4 @@ Milestone 1 includes:
 
 ## Next milestones
 
-1. API routes
-2. chat UI and admin dashboard
+1. chat UI and admin dashboard
