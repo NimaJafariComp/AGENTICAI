@@ -76,6 +76,7 @@ def ensure_session_state() -> None:
     st.session_state.setdefault("selected_demo", "Approved refund")
     st.session_state.setdefault("voice_draft", "")
     st.session_state.setdefault("voice_transcription", None)
+    st.session_state.setdefault("voice_status_message", "")
 
 
 def ensure_chat_session(customer_email: str | None = None) -> str:
@@ -231,6 +232,9 @@ def render_styles() -> None:
         .trace-card.approve { border-left-color: var(--good); }
         .trace-card.deny { border-left-color: var(--bad); }
         .trace-card.escalate { border-left-color: var(--signal); }
+        .trace-card.voice { border-left-color: #4a7f95; }
+        .trace-card.voice-result { border-left-color: #1f7a54; }
+        .trace-card.voice-failed { border-left-color: #a84432; }
 
         .trace-meta {
           font-family: "IBM Plex Mono", monospace;
@@ -285,6 +289,27 @@ def render_styles() -> None:
           text-transform: uppercase;
           margin-top: 0.5rem;
           background: rgba(41, 72, 90, 0.08);
+        }
+
+        .voice-note-card {
+          border: 1px dashed rgba(41, 72, 90, 0.22);
+          border-radius: 18px;
+          padding: 0.95rem 1rem;
+          background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(242,240,234,0.92));
+          margin: 0.8rem 0 1rem 0;
+        }
+
+        .voice-title {
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--ink);
+          margin-bottom: 0.25rem;
+        }
+
+        .voice-copy {
+          color: rgba(19, 33, 43, 0.78);
+          font-size: 0.92rem;
+          margin-bottom: 0.5rem;
         }
         </style>
         """,
@@ -356,42 +381,55 @@ def render_chat_tab() -> None:
     if st.session_state.chat_session_id:
         st.caption(f"Session: `{st.session_state.chat_session_id}`")
 
-    st.markdown("##### Voice note")
-    st.caption("Record a short WAV voice request, transcribe locally, then review before sending.")
+    st.markdown(
+        """
+        <div class="voice-note-card">
+          <div class="voice-title">Speak your refund request</div>
+          <div class="voice-copy">
+            Record a short voice note, turn it into text, then review it before sending.
+            The first transcription can take a little longer while the local speech model wakes up.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     voice_note = st.audio_input("Record a voice request", key="voice_note")
 
     voice_cols = st.columns([1, 1, 2])
     with voice_cols[0]:
-        if st.button("Transcribe voice", use_container_width=True):
+        if st.button("Turn into text", use_container_width=True):
             if voice_note is None:
                 st.warning("Record a voice note first.")
             else:
                 transcribe_voice_note(voice_note)
     with voice_cols[1]:
-        if st.button("Clear voice draft", use_container_width=True):
+        if st.button("Clear draft", use_container_width=True):
             st.session_state.voice_draft = ""
             st.session_state.voice_transcription = None
+            st.session_state.voice_status_message = ""
             st.rerun()
     with voice_cols[2]:
         transcription = st.session_state.voice_transcription
         if transcription:
             st.caption(
-                f"Local STT: {transcription['model_name']} · "
-                f"{transcription['latency_ms']} ms · "
+                f"Voice note ready · {transcription['latency_ms']} ms · "
                 f"{format_duration(transcription.get('duration_ms'))}"
             )
+    if st.session_state.voice_status_message:
+        st.info(st.session_state.voice_status_message)
 
     st.session_state.voice_draft = st.text_area(
-        "Transcript draft",
+        "Review before sending",
         value=st.session_state.voice_draft,
         height=120,
-        placeholder="Voice transcript appears here. You can edit it before sending.",
+        placeholder="Your transcribed message appears here. You can edit it before sending.",
     )
     if st.button("Send transcript", use_container_width=True, disabled=not st.session_state.voice_draft.strip()):
         draft_message = st.session_state.voice_draft.strip()
         st.session_state.chat_messages.append({"role": "user", "content": draft_message})
         st.session_state.voice_draft = ""
         st.session_state.voice_transcription = None
+        st.session_state.voice_status_message = ""
         send_chat_message(draft_message)
 
     for message in st.session_state.chat_messages:
@@ -434,12 +472,16 @@ def transcribe_voice_note(voice_note) -> None:
             getattr(voice_note, "type", "audio/wav"),
         )
     }
-    result, error = safe_api_post_file(f"/api/chat/{session_id}/transcriptions", files=files)
+    with st.spinner("Turning your voice note into text..."):
+        result, error = safe_api_post_file(f"/api/chat/{session_id}/transcriptions", files=files)
     if error:
         st.error(f"Transcription failed: {error}")
         return
     st.session_state.voice_draft = result.get("transcript", "")
     st.session_state.voice_transcription = result
+    st.session_state.voice_status_message = (
+        "Transcript ready. Give it a quick review, then send it into the chat."
+    )
     st.rerun()
 
 
@@ -531,11 +573,13 @@ def render_admin_tab() -> None:
     with trace_tab:
         for trace in traces:
             payload = trace["payload"]
+            trace_class = trace_variant(trace["event_type"])
+            trace_label = "Voice path" if is_voice_event(trace["event_type"]) else trace["event_type"].replace("_", " ").title()
             st.markdown(
                 f"""
-                <div class="trace-card">
+                <div class="trace-card {trace_class}">
                   <div class="trace-meta">{format_timestamp(trace['created_at'])} · {trace['event_type']} · latency {trace.get('latency_ms') or 0} ms · tokens {format_token_count(trace.get('token_usage'))} · cost {format_cost(trace.get('estimated_cost_usd'))}</div>
-                  <div class="trace-title">{trace['event_type'].replace('_', ' ').title()}</div>
+                  <div class="trace-title">{trace_label}</div>
                   <div class="trace-json">{json.dumps(payload, indent=2)}</div>
                 </div>
                 """,
@@ -639,6 +683,20 @@ def format_duration(value: int | None) -> str:
     if value is None:
         return "duration n/a"
     return f"{value} ms"
+
+
+def is_voice_event(event_type: str) -> bool:
+    return event_type.startswith("speech_to_text") or event_type == "voice_input_received"
+
+
+def trace_variant(event_type: str) -> str:
+    if event_type == "speech_to_text_result":
+        return "voice-result"
+    if event_type == "speech_to_text_failed":
+        return "voice-failed"
+    if is_voice_event(event_type):
+        return "voice"
+    return ""
 
 
 def main() -> None:
