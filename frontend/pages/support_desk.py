@@ -227,7 +227,7 @@ def render_composer() -> None:
         st.session_state[SK.CHAT_DRAFT] = draft
 
     # Action row — plain columns, no wrapper div
-    c_mic, c_clear, c_hint, c_send = st.columns([1, 1, 3, 1.5])
+    c_mic, c_clear, c_send = st.columns([1, 1, 4.5])
 
     with c_mic:
         if voice_state == "idle" and not processing:
@@ -251,12 +251,6 @@ def render_composer() -> None:
                 st.session_state[SK.CHAT_DRAFT]  = ""
                 st.session_state[SK.VOICE_STATE] = "idle"
                 st.rerun()
-
-    with c_hint:
-        if processing:
-            st.caption("Processing…")
-        elif voice_state == "idle":
-            st.caption("type or use 🎙")
 
     with c_send:
         current_draft = st.session_state.get(SK.CHAT_DRAFT, "")

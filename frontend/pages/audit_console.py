@@ -18,8 +18,20 @@ from frontend.shared import (
     fetch_sessions,
 )
 
-_OUTCOME_ICON = {"APPROVE": "✓", "DENY": "✕", "ESCALATE": "⚠"}
+_OUTCOME_ICON  = {"APPROVE": "✓", "DENY": "✕", "ESCALATE": "⚠"}
 _OUTCOME_LABEL = {"APPROVE": "APPROVED", "DENY": "DENIED", "ESCALATE": "ESCALATED"}
+
+
+def _session_status(outcome: str, tool_calls: list, traces: list) -> tuple[str, str]:
+    """Return (icon, label) for a session row."""
+    if outcome:
+        return _OUTCOME_ICON.get(outcome, "·"), _OUTCOME_LABEL.get(outcome, outcome)
+    failed = any(c["status"] == "failed" for c in tool_calls)
+    if failed:
+        return "✕", "ERRORED"
+    if tool_calls or traces:
+        return "—", "INCOMPLETE"
+    return "○", "NO ACTIVITY"
 
 
 def _short_ts(iso: str) -> str:
@@ -54,11 +66,12 @@ def main() -> None:
         ts    = _short_ts(sess.get("created_at", ""))
 
         detail, _ = fetch_session_detail(sid)
-        decs      = (detail or {}).get("final_decisions", [])
-        outcome   = decs[-1]["decision_type"] if decs else ""
-        icon      = _OUTCOME_ICON.get(outcome, "·")
-        label_txt = _OUTCOME_LABEL.get(outcome, "PENDING")
-        ts_part   = f"  ·  {ts}" if ts else ""
+        decs       = (detail or {}).get("final_decisions", [])
+        tool_calls = (detail or {}).get("tool_calls", [])
+        traces     = (detail or {}).get("traces", [])
+        outcome    = decs[-1]["decision_type"] if decs else ""
+        icon, label_txt = _session_status(outcome, tool_calls, traces)
+        ts_part    = f"  ·  {ts}" if ts else ""
 
         row_label = f"{icon}  {label_txt}  ·  {email}  ·  #{sid[-8:]}{ts_part}"
 
@@ -108,6 +121,28 @@ def _render_detail(detail: dict[str, Any]) -> None:
             f'<br><span style="font-family:JetBrains Mono,monospace;font-size:0.65rem;'
             f'color:var(--faint)">id · {dec["decision_id"]}</span>'
             f'<br><span style="margin-top:0.3rem;display:inline-block">{codes_html}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        failed_calls = [c for c in tool_calls if c["status"] == "failed"]
+        if failed_calls:
+            s_cls  = "errored"
+            s_label = "ERRORED"
+            s_note  = f"{len(failed_calls)} tool call{'s' if len(failed_calls) != 1 else ''} failed — no decision was reached"
+        elif tool_calls or traces:
+            s_cls  = "incomplete"
+            s_label = "INCOMPLETE"
+            s_note  = "Session ended without reaching a terminal decision"
+        else:
+            s_cls  = "no-activity"
+            s_label = "NO ACTIVITY"
+            s_note  = "Session was created but no messages were processed"
+        st.markdown(
+            f'<div class="verdict-block {s_cls}" style="margin-bottom:0.8rem">'
+            f'<span class="verdict-type {s_cls}">{s_label}</span>'
+            f'<br><span style="font-size:0.82rem;color:var(--muted);margin-top:0.25rem;display:block">'
+            f'{s_note}</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
