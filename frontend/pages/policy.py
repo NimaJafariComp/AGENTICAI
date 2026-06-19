@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from frontend.shared import fetch_policy
+from frontend.shared import fetch_policy, render_json_code
 
 
 def main() -> None:
@@ -63,4 +63,4 @@ def main() -> None:
     else:
         st.markdown('<div class="panel-label">Full policy</div>', unsafe_allow_html=True)
         with st.expander("Raw policy object", expanded=False):
-            st.json(policy)
+            render_json_code(policy)

@@ -16,6 +16,7 @@ from frontend.shared import (
     _ts,
     fetch_session_detail,
     fetch_sessions,
+    render_json_code,
 )
 
 _OUTCOME_ICON  = {"APPROVE": "✓", "DENY": "✕", "ESCALATE": "⚠"}
@@ -154,7 +155,7 @@ def _render_detail(detail: dict[str, Any]) -> None:
     with tc_tab:
         _render_tool_calls(tool_calls)
     with raw_tab:
-        st.json(detail, expanded=True)
+        render_json_code(detail)
 
 
 def _render_timeline(traces: list[dict[str, Any]]) -> None:
@@ -178,7 +179,7 @@ def _render_timeline(traces: list[dict[str, Any]]) -> None:
             unsafe_allow_html=True,
         )
         with st.expander("Payload", expanded=False):
-            st.json(trace["payload"])
+            render_json_code(trace["payload"])
 
 
 def _render_tool_calls(tool_calls: list[dict[str, Any]]) -> None:
@@ -201,7 +202,7 @@ def _render_tool_calls(tool_calls: list[dict[str, Any]]) -> None:
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("**Input**")
-                st.json(call["tool_input"], expanded=True)
+                render_json_code(call["tool_input"])
             with c2:
                 st.markdown("**Output**")
-                st.json(call.get("tool_output") or {}, expanded=True)
+                render_json_code(call.get("tool_output") or {})
