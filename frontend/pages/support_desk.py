@@ -8,6 +8,7 @@ import queue as _queue
 from typing import Any
 
 import streamlit as st
+import streamlit.components.v1 as _components
 
 from frontend.shared import (
     DECISION_COPY,
@@ -20,16 +21,55 @@ from frontend.shared import (
     fetch_session_detail_live,
     fetch_sessions,
     reset_session,
-    safe_post_file,
     start_send,
 )
 
 _VOICE_PLACEHOLDER: dict[str, str] = {
-    "idle":         "Describe the refund request…",
-    "recording":    "● Listening — stop recording when done",
-    "transcribing": "Transcribing…",
-    "ready":        "Transcript ready — edit or send",
+    "idle":     "Describe the refund request…",
+    "recording": "● Listening…",
+    "ready":    "Transcript ready — edit or send",
 }
+
+_SPEECH_JS = """
+<script>
+(function () {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { console.warn('Web Speech API not supported'); return; }
+
+  const rec = new SR();
+  rec.continuous      = true;
+  rec.interimResults  = true;
+  rec.lang            = 'en-US';
+
+  let final = '';
+
+  function pushToTextarea(text) {
+    const parent = window.parent.document;
+    const ta = parent.querySelector('textarea');
+    if (!ta) return;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.parent.HTMLTextAreaElement.prototype, 'value'
+    ).set;
+    setter.call(ta, text);
+    ta.dispatchEvent(new window.parent.Event('input', { bubbles: true }));
+  }
+
+  rec.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+      else interim += e.results[i][0].transcript;
+    }
+    pushToTextarea(final + interim);
+  };
+
+  rec.onend = () => { try { rec.start(); } catch (_) {} };   // restart on silence timeout
+  rec.onerror = (e) => { if (e.error !== 'no-speech') console.error('SR error:', e.error); };
+
+  rec.start();
+})();
+</script>
+"""
 
 
 # ── Page entry ────────────────────────────────────────────────────────────────
@@ -163,15 +203,14 @@ def render_composer() -> None:
 
     st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
 
-    # Voice state hint above textarea (only when non-idle)
+    # Live speech recognition — invisible iframe, updates textarea via React synthetic events
+    if voice_state == "recording":
+        _components.html(_SPEECH_JS, height=1)
+
+    # Status line above textarea (non-idle only)
     if voice_state == "recording":
         st.markdown(
-            '<p style="font-size:0.78rem;color:var(--deny);margin:0 0 0.25rem">● Recording — stop when done</p>',
-            unsafe_allow_html=True,
-        )
-    elif voice_state == "transcribing":
-        st.markdown(
-            '<p style="font-size:0.78rem;color:var(--escalate);margin:0 0 0.25rem">⏳ Transcribing…</p>',
+            '<p style="font-size:0.78rem;color:var(--deny);margin:0 0 0.25rem">● Recording — tap ⏹ to stop</p>',
             unsafe_allow_html=True,
         )
     elif voice_state == "ready":
@@ -180,64 +219,33 @@ def render_composer() -> None:
             unsafe_allow_html=True,
         )
 
-    # Audio recorder appears inline when recording
-    if voice_state == "recording":
-        audio = st.audio_input("Voice note", key="voice_capture", label_visibility="collapsed")
-        if audio is not None:
-            st.session_state[SK.VOICE_STATE] = "transcribing"
-            st.session_state[SK.VOICE_AUDIO] = audio
-            st.rerun()
-
-    # Auto-transcribe immediately after recording stops
-    if voice_state == "transcribing":
-        audio = st.session_state.get(SK.VOICE_AUDIO)
-        if audio is not None:
-            sid   = ensure_chat_session()
-            files = {
-                "audio": (
-                    getattr(audio, "name", "voice.wav"),
-                    audio.getvalue(),
-                    getattr(audio, "type", "audio/wav"),
-                )
-            }
-            with st.spinner("Transcribing…"):
-                result, error = safe_post_file(
-                    f"/api/chat/{sid}/transcriptions", files=files,
-                )
-            if error:
-                st.error(f"Transcription failed: {error}")
-                st.session_state[SK.VOICE_STATE] = "idle"
-            else:
-                st.session_state[SK.CHAT_DRAFT] = result.get("transcript", "")
-                st.session_state[SK.VOICE_STATE] = "ready"
-        else:
-            st.session_state[SK.VOICE_STATE] = "idle"
-        st.rerun(scope="app")
-
     draft = st.text_area(
         "Message",
         value=st.session_state.get(SK.CHAT_DRAFT, ""),
-        placeholder=_VOICE_PLACEHOLDER.get(voice_state, ""),
+        placeholder=_VOICE_PLACEHOLDER.get(voice_state, "Describe the refund request…"),
         height=72,
-        disabled=(voice_state == "transcribing" or processing),
+        disabled=processing,
         label_visibility="collapsed",
         key="composer_draft",
     )
-    if voice_state != "transcribing":
+    # Don't overwrite draft during recording (JS is writing to it)
+    if voice_state != "recording":
         st.session_state[SK.CHAT_DRAFT] = draft
 
-    # Action row — plain columns, no wrapper div
     c_mic, c_clear, c_send = st.columns([1, 1, 4.5])
 
     with c_mic:
         if voice_state == "idle" and not processing:
-            if st.button("🎙", key="mic_btn", help="Record voice input"):
+            if st.button("🎙", key="mic_btn", help="Start voice input"):
+                st.session_state[SK.CHAT_DRAFT]  = ""
                 st.session_state[SK.VOICE_STATE] = "recording"
                 st.rerun()
         elif voice_state == "recording":
-            if st.button("✕ Cancel", key="cancel_rec"):
-                st.session_state[SK.VOICE_STATE] = "idle"
-                st.session_state[SK.VOICE_AUDIO]  = None
+            if st.button("⏹", key="stop_rec", help="Stop recording"):
+                # Capture whatever JS wrote to the textarea widget before rerun
+                captured = st.session_state.get("composer_draft", "").strip()
+                st.session_state[SK.CHAT_DRAFT]  = captured
+                st.session_state[SK.VOICE_STATE] = "ready" if captured else "idle"
                 st.rerun()
         elif voice_state == "ready":
             if st.button("🔁", key="rerecord_btn", help="Re-record"):
@@ -246,19 +254,15 @@ def render_composer() -> None:
                 st.rerun()
 
     with c_clear:
-        if voice_state == "ready":
-            if st.button("✕ Clear", key="clear_btn"):
+        if voice_state in ("recording", "ready"):
+            if st.button("✕", key="cancel_rec", help="Cancel"):
                 st.session_state[SK.CHAT_DRAFT]  = ""
                 st.session_state[SK.VOICE_STATE] = "idle"
                 st.rerun()
 
     with c_send:
         current_draft = st.session_state.get(SK.CHAT_DRAFT, "")
-        disabled = (
-            not current_draft.strip()
-            or voice_state in ("recording", "transcribing")
-            or processing
-        )
+        disabled = not current_draft.strip() or voice_state == "recording" or processing
         if st.button("Send →", type="primary", disabled=disabled,
                      key="send_btn", use_container_width=True):
             msg = current_draft.strip()

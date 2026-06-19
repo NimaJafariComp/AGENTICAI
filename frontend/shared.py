@@ -625,11 +625,6 @@ pre, pre code {{ background:#ffffff !important; color:#111827 !important; border
 [data-testid="stJson"] .cm-number, [data-testid="stJson"] .cm-property {{ color:#2563eb !important; }}
 [data-testid="stJson"] .cm-punctuation, [data-testid="stJson"] .cm-bracket {{ color:#6b7280 !important; }}
 [data-testid="stTabs"] [data-baseweb="tab-panel"] {{ background:#f3f4f6 !important; }}
-[data-testid="stAudioInput"] {{ background:#f3f4f6 !important; border:1px solid rgba(17,24,39,0.10) !important; border-radius:8px !important; }}
-[data-testid="stAudioInput"] *:not(canvas) {{ background:#f3f4f6 !important; color:#6b7280 !important; border-color:rgba(17,24,39,0.10) !important; }}
-[data-testid="stAudioInput"] svg {{ background:transparent !important; }}
-[data-testid="stAudioInput"] svg path, [data-testid="stAudioInput"] svg rect, [data-testid="stAudioInput"] svg circle {{ fill:#6b7280 !important; stroke:none !important; }}
-[data-testid="stAudioInput"] canvas {{ filter:invert(1) brightness(0.6) !important; }}
 [data-testid="stBaseButton-primary"]:disabled {{ background:rgba(37,99,235,0.12) !important; border-color:transparent !important; color:rgba(37,99,235,0.45) !important; opacity:1 !important; }}
 </style>""", unsafe_allow_html=True)
 
