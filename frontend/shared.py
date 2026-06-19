@@ -3,6 +3,7 @@ Shared state, HTTP, cache decorators, design tokens, and CSS for all pages.
 """
 from __future__ import annotations
 
+import json
 import os
 import queue as _queue
 import threading
@@ -657,3 +658,8 @@ def _is_voice(event_type: str) -> bool:
     return event_type.startswith("speech_to_text") or event_type in {
         "voice_input_received", "transcription_completed",
     }
+
+
+def render_json_code(payload: Any) -> None:
+    """Render JSON as plain themed code instead of Streamlit's badge-heavy JSON tree."""
+    st.code(json.dumps(payload, indent=2, default=str), language="json")
