@@ -4,7 +4,7 @@ Local demo app for an AI customer support agent that handles e-commerce refund r
 
 ## Status
 
-Current state: `Milestone 9` local demo UI complete.
+Current state: `Milestone 10` polish and walkthrough prep complete.
 
 Included:
 
@@ -23,10 +23,11 @@ Included:
 - simple refund agent loop with tool orchestration
 - API routes for chat, policy, lookups, and admin trace reads
 - Streamlit customer chat, admin dashboard, and policy viewer
+- demo walkthrough guide and helper make targets
 
 Not included yet:
 
-- refund tool execution
+- refund tool execution beyond current local demo scope
 - optional production polish beyond the local demo
 
 ## Planned architecture
@@ -74,7 +75,13 @@ To force mock mode:
 LLM_PROVIDER=mock
 ```
 
-## Local development
+Recommended demo mode:
+
+```bash
+LLM_PROVIDER=mock make dev
+```
+
+## Quick start
 
 Create a virtual environment and install pinned dependencies:
 
@@ -90,10 +97,17 @@ Start the app:
 make dev
 ```
 
-Current scaffold starts:
+App starts:
 
 - FastAPI on `http://localhost:8000`
 - Streamlit on `http://localhost:8501`
+
+Useful helper commands:
+
+```bash
+make check
+make stop
+```
 
 ## Python compatibility
 
@@ -106,7 +120,7 @@ If dependency installation fails because of Python `3.14` package compatibility,
 
 ## Seed data
 
-Milestone 1 includes:
+Included:
 
 - `15` mock customers
 - multiple order histories
@@ -117,6 +131,40 @@ Milestone 1 includes:
   - escalate due to amount over `$500`
   - suspicious/inconsistent claim review
 
-## Next milestones
+## Demo flow
 
-1. final polish and walkthrough prep
+Fastest walkthrough path:
+
+1. Open Customer chat.
+2. Run `Approved refund`.
+3. Run `Denied: final sale`.
+4. Run `Escalate: amount over $500`.
+5. Run `Prompt injection attempt`.
+6. Open Admin dashboard and inspect traces.
+
+Detailed script:
+
+- see [DEMO.md](/Users/nimajafari/Programming/git_repos/AgenticAI/DEMO.md:1)
+
+## Troubleshooting
+
+### Backend not reachable
+
+```bash
+curl http://localhost:8000/health
+```
+
+### Clean local restart
+
+```bash
+make stop
+make dev
+```
+
+### Reset to deterministic demo mode
+
+```bash
+export LLM_PROVIDER=mock
+make stop
+make dev
+```
