@@ -28,7 +28,14 @@ class MockProvider(BaseProvider):
                 break
 
         lowered = user_message.lower()
-        if "refund" in lowered:
+        if "decision:" in lowered:
+            if "approve" in lowered:
+                content = "Your refund is approved under our policy. I can confirm the request has been completed."
+            elif "deny" in lowered:
+                content = "Your refund request is denied under the refund policy. I can explain the specific reason if helpful."
+            else:
+                content = "Your request has been escalated for human review under the refund policy."
+        elif "refund" in lowered:
             content = (
                 "I can help with your refund request. Please share your email, order ID, "
                 "item, and what went wrong so I can check eligibility."

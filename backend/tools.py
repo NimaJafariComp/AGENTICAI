@@ -29,20 +29,45 @@ class RefundTools:
         self.policy_engine = policy_engine
         self.trace_service = trace_service
 
-    def lookup_customer(self, *, email: str):
+    def lookup_customer(self, *, email: str, session_id: str | None = None):
         customer = self.data_store.get_customer_by_email(email)
         if customer is None:
             raise ToolAuthorizationError(f"Customer not found for email: {email}")
+        if session_id is not None:
+            self._log_tool_call(
+                session_id=session_id,
+                tool_name="lookup_customer",
+                tool_input={"email": email},
+                tool_output={"customer_id": customer.id, "email": customer.email},
+            )
         return customer
 
-    def lookup_order(self, *, order_id: str):
+    def lookup_order(self, *, order_id: str, session_id: str | None = None):
         order = self.data_store.get_order_by_id(order_id)
         if order is None:
             raise ToolAuthorizationError(f"Order not found: {order_id}")
+        if session_id is not None:
+            self._log_tool_call(
+                session_id=session_id,
+                tool_name="lookup_order",
+                tool_input={"order_id": order_id},
+                tool_output={"order_id": order.id, "customer_id": order.customer_id},
+            )
         return order
 
-    def get_refund_policy(self):
-        return self.data_store.load_policy()
+    def get_refund_policy(self, *, session_id: str | None = None):
+        policy = self.data_store.load_policy()
+        if session_id is not None:
+            self._log_tool_call(
+                session_id=session_id,
+                tool_name="get_refund_policy",
+                tool_input={},
+                tool_output={
+                    "policy_name": policy.metadata.policy_name,
+                    "policy_version": policy.metadata.policy_version,
+                },
+            )
+        return policy
 
     def check_refund_eligibility(
         self,
@@ -50,13 +75,13 @@ class RefundTools:
         request: RefundRequest,
         today: date | None = None,
     ) -> dict[str, object]:
-        customer = self.lookup_customer(email=request.customer_email)
-        order = self.lookup_order(order_id=request.order_id)
+        customer = self.lookup_customer(email=request.customer_email, session_id=request.session_id)
+        order = self.lookup_order(order_id=request.order_id, session_id=request.session_id)
         item = self.data_store.get_order_item(request.order_id, request.item_id)
         if item is None:
             raise ToolAuthorizationError(f"Order item not found: {request.item_id}")
 
-        policy = self.get_refund_policy()
+        policy = self.get_refund_policy(session_id=request.session_id)
         evaluation_date = today or datetime.now(UTC).date()
         decision = self.policy_engine.evaluate_refund(
             request=request,

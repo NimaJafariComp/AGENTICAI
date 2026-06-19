@@ -226,3 +226,15 @@ class PolicyDecision(BaseModel):
     explanation: str
     eligible: bool
     requires_human_review: bool
+
+
+class AgentTurnResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    status: str
+    assistant_message: str
+    missing_fields: list[str] = Field(default_factory=list)
+    decision_type: str | None = None
+    decision_id: str | None = None
+    tool_outputs: dict[str, object] = Field(default_factory=dict)
