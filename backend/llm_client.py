@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from uuid import uuid4
 
@@ -79,7 +80,10 @@ class LLMClient:
         if session_id and self.selection.fallback_used and session_id not in self._fallback_logged_sessions:
             self._log_fallback(session_id)
             self._fallback_logged_sessions.add(session_id)
-        return self.selection.provider.chat(messages=messages, system_prompt=system_prompt)
+        started_at = time.perf_counter()
+        response = self.selection.provider.chat(messages=messages, system_prompt=system_prompt)
+        latency_ms = max(1, round((time.perf_counter() - started_at) * 1000))
+        return response.model_copy(update={"latency_ms": latency_ms})
 
     def provider_info(self) -> dict[str, object]:
         return {

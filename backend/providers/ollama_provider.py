@@ -66,6 +66,8 @@ class OllamaProvider(BaseProvider):
             provider_name=self.provider_name,
             model_name=self.model_name,
             content=content,
+            token_usage=self._extract_token_usage(data),
+            estimated_cost_usd=0.0 if self.mode == "local" else None,
             raw_response=data,
         )
 
@@ -75,3 +77,17 @@ class OllamaProvider(BaseProvider):
             timeout=self.timeout,
             transport=self.transport,
         )
+
+    def _extract_token_usage(self, response_data: dict[str, Any]) -> dict[str, Any] | None:
+        prompt_tokens = response_data.get("prompt_eval_count")
+        completion_tokens = response_data.get("eval_count")
+        if prompt_tokens is None and completion_tokens is None:
+            return None
+        prompt_value = int(prompt_tokens or 0)
+        completion_value = int(completion_tokens or 0)
+        return {
+            "prompt_tokens": prompt_value,
+            "completion_tokens": completion_value,
+            "total_tokens": prompt_value + completion_value,
+            "estimated": False,
+        }

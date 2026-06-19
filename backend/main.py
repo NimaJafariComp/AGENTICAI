@@ -51,7 +51,7 @@ def create_chat_session(payload: CreateChatSessionRequest) -> ChatSessionRespons
         session_id=f"session-{uuid4()}",
         customer_email=payload.customer_email,
     )
-    return ChatSessionResponse(**session.model_dump())
+    return _chat_session_response(session)
 
 
 @app.post("/api/chat/{session_id}/messages")
@@ -84,7 +84,7 @@ def get_admin_trace(trace_id: str) -> TraceResponse:
 
 @app.get("/api/admin/sessions", response_model=list[ChatSessionResponse])
 def list_admin_sessions() -> list[ChatSessionResponse]:
-    return [ChatSessionResponse(**session.model_dump()) for session in data_store.list_sessions()]
+    return [_chat_session_response(session) for session in data_store.list_sessions()]
 
 
 @app.get("/api/policy")
@@ -124,10 +124,19 @@ def _build_session_detail(session_id: str) -> SessionDetailResponse:
         _final_decision_response(decision) for decision in data_store.list_final_decisions(session_id=session_id)
     ]
     return SessionDetailResponse(
-        session=ChatSessionResponse(**session.model_dump()),
+        session=_chat_session_response(session),
         traces=traces,
         tool_calls=tool_calls,
         final_decisions=final_decisions,
+    )
+
+
+def _chat_session_response(session) -> ChatSessionResponse:
+    return ChatSessionResponse(
+        session_id=session.session_id,
+        customer_email=session.customer_email,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
     )
 
 
@@ -137,6 +146,9 @@ def _trace_response(trace) -> TraceResponse:
         session_id=trace.session_id,
         event_type=trace.event_type,
         payload=json.loads(trace.payload_json),
+        latency_ms=trace.latency_ms,
+        token_usage=json.loads(trace.token_usage_json) if trace.token_usage_json else None,
+        estimated_cost_usd=trace.estimated_cost_usd,
         created_at=trace.created_at,
     )
 
@@ -149,6 +161,10 @@ def _tool_call_response(call) -> ToolCallResponse:
         tool_input=json.loads(call.tool_input_json),
         tool_output=json.loads(call.tool_output_json) if call.tool_output_json else None,
         status=call.status,
+        latency_ms=call.latency_ms,
+        retry_group=call.retry_group,
+        attempt_number=call.attempt_number,
+        error_message=call.error_message,
         created_at=call.created_at,
     )
 

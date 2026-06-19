@@ -33,7 +33,12 @@ def test_create_session_and_complete_chat_flow() -> None:
 
         message_response = client.post(
             f"/api/chat/{session['session_id']}/messages",
-            json={"message": "My email is ava.johnson@example.com and order ORD-1001 should be refunded."},
+            json={
+                "message": (
+                    "My name is Ava Johnson. My email is ava.johnson@example.com. "
+                    "Please refund order ORD-1001 for the Everyday Hoodie because I changed my mind."
+                )
+            },
         )
         assert message_response.status_code == 200
         result = message_response.json()
@@ -44,8 +49,10 @@ def test_create_session_and_complete_chat_flow() -> None:
 
     assert result["status"] == "completed"
     assert result["decision_type"] == "APPROVE"
+    assert result["latency_ms"] >= 1
+    assert result["token_usage"]["total_tokens"] > 0
     assert detail["session"]["session_id"] == session["session_id"]
-    assert len(detail["traces"]) >= 2
+    assert len(detail["traces"]) >= 4
     assert len(detail["tool_calls"]) >= 5
     assert len(detail["final_decisions"]) == 1
 

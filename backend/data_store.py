@@ -109,6 +109,7 @@ class DataStore:
                 CREATE TABLE IF NOT EXISTS sessions (
                     session_id TEXT PRIMARY KEY,
                     customer_email TEXT,
+                    intake_state_json TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -118,6 +119,9 @@ class DataStore:
                     session_id TEXT NOT NULL,
                     event_type TEXT NOT NULL,
                     payload_json TEXT NOT NULL,
+                    latency_ms INTEGER,
+                    token_usage_json TEXT,
+                    estimated_cost_usd REAL,
                     created_at TEXT NOT NULL
                 );
 
@@ -128,6 +132,10 @@ class DataStore:
                     tool_input_json TEXT NOT NULL,
                     tool_output_json TEXT,
                     status TEXT NOT NULL,
+                    latency_ms INTEGER,
+                    retry_group TEXT,
+                    attempt_number INTEGER NOT NULL DEFAULT 1,
+                    error_message TEXT,
                     created_at TEXT NOT NULL
                 );
 
@@ -143,6 +151,16 @@ class DataStore:
                 );
                 """
             )
+            self._ensure_column(connection, "sessions", "intake_state_json", "TEXT")
+            self._ensure_column(connection, "traces", "latency_ms", "INTEGER")
+            self._ensure_column(connection, "traces", "token_usage_json", "TEXT")
+            self._ensure_column(connection, "traces", "estimated_cost_usd", "REAL")
+            self._ensure_column(connection, "tool_calls", "latency_ms", "INTEGER")
+            self._ensure_column(connection, "tool_calls", "retry_group", "TEXT")
+            self._ensure_column(
+                connection, "tool_calls", "attempt_number", "INTEGER NOT NULL DEFAULT 1"
+            )
+            self._ensure_column(connection, "tool_calls", "error_message", "TEXT")
 
     def runtime_table_counts(self) -> dict[str, int]:
         with self._connect_runtime_db() as connection:
@@ -158,8 +176,11 @@ class DataStore:
         with self._connect_runtime_db() as connection:
             connection.execute(
                 """
-                INSERT OR REPLACE INTO sessions (session_id, customer_email, created_at, updated_at)
+                INSERT OR REPLACE INTO sessions (
+                    session_id, customer_email, intake_state_json, created_at, updated_at
+                )
                 VALUES (
+                    ?,
                     ?,
                     ?,
                     COALESCE((SELECT created_at FROM sessions WHERE session_id = ?), ?),
@@ -169,6 +190,7 @@ class DataStore:
                 (
                     payload.session_id,
                     payload.customer_email,
+                    self._serialize_json(payload.intake_state),
                     payload.session_id,
                     timestamp,
                     timestamp,
@@ -181,7 +203,7 @@ class DataStore:
         with self._connect_runtime_db() as connection:
             row = connection.execute(
                 """
-                SELECT session_id, customer_email, created_at, updated_at
+                SELECT session_id, customer_email, intake_state_json, created_at, updated_at
                 FROM sessions
                 WHERE session_id = ?
                 """,
@@ -194,6 +216,7 @@ class DataStore:
         return RuntimeSession(
             session_id=row["session_id"],
             customer_email=row["customer_email"],
+            intake_state_json=row["intake_state_json"],
             created_at=self._parse_timestamp(row["created_at"]),
             updated_at=self._parse_timestamp(row["updated_at"]),
         )
@@ -202,7 +225,7 @@ class DataStore:
         with self._connect_runtime_db() as connection:
             rows = connection.execute(
                 """
-                SELECT session_id, customer_email, created_at, updated_at
+                SELECT session_id, customer_email, intake_state_json, created_at, updated_at
                 FROM sessions
                 ORDER BY created_at ASC
                 """
@@ -212,6 +235,7 @@ class DataStore:
             RuntimeSession(
                 session_id=row["session_id"],
                 customer_email=row["customer_email"],
+                intake_state_json=row["intake_state_json"],
                 created_at=self._parse_timestamp(row["created_at"]),
                 updated_at=self._parse_timestamp(row["updated_at"]),
             )
@@ -220,7 +244,8 @@ class DataStore:
 
     def list_traces(self, session_id: str | None = None) -> list[RuntimeTrace]:
         query = """
-            SELECT trace_id, session_id, event_type, payload_json, created_at
+            SELECT trace_id, session_id, event_type, payload_json, latency_ms,
+                   token_usage_json, estimated_cost_usd, created_at
             FROM traces
         """
         params: tuple[Any, ...] = ()
@@ -238,6 +263,9 @@ class DataStore:
                 session_id=row["session_id"],
                 event_type=row["event_type"],
                 payload_json=row["payload_json"],
+                latency_ms=row["latency_ms"],
+                token_usage_json=row["token_usage_json"],
+                estimated_cost_usd=row["estimated_cost_usd"],
                 created_at=self._parse_timestamp(row["created_at"]),
             )
             for row in rows
@@ -247,7 +275,8 @@ class DataStore:
         with self._connect_runtime_db() as connection:
             row = connection.execute(
                 """
-                SELECT trace_id, session_id, event_type, payload_json, created_at
+                SELECT trace_id, session_id, event_type, payload_json, latency_ms,
+                       token_usage_json, estimated_cost_usd, created_at
                 FROM traces
                 WHERE trace_id = ?
                 """,
@@ -262,6 +291,9 @@ class DataStore:
             session_id=row["session_id"],
             event_type=row["event_type"],
             payload_json=row["payload_json"],
+            latency_ms=row["latency_ms"],
+            token_usage_json=row["token_usage_json"],
+            estimated_cost_usd=row["estimated_cost_usd"],
             created_at=self._parse_timestamp(row["created_at"]),
         )
 
@@ -272,14 +304,20 @@ class DataStore:
         with self._connect_runtime_db() as connection:
             connection.execute(
                 """
-                INSERT INTO traces (trace_id, session_id, event_type, payload_json, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO traces (
+                    trace_id, session_id, event_type, payload_json,
+                    latency_ms, token_usage_json, estimated_cost_usd, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.trace_id,
                     payload.session_id,
                     payload.event_type,
                     serialized_payload,
+                    payload.latency_ms,
+                    self._serialize_json(payload.token_usage),
+                    payload.estimated_cost_usd,
                     timestamp,
                 ),
             )
@@ -289,12 +327,16 @@ class DataStore:
             session_id=payload.session_id,
             event_type=payload.event_type,
             payload_json=serialized_payload,
+            latency_ms=payload.latency_ms,
+            token_usage_json=self._serialize_json(payload.token_usage),
+            estimated_cost_usd=payload.estimated_cost_usd,
             created_at=self._parse_timestamp(timestamp),
         )
 
     def list_tool_calls(self, session_id: str | None = None) -> list[RuntimeToolCall]:
         query = """
-            SELECT tool_call_id, session_id, tool_name, tool_input_json, tool_output_json, status, created_at
+            SELECT tool_call_id, session_id, tool_name, tool_input_json, tool_output_json,
+                   status, latency_ms, retry_group, attempt_number, error_message, created_at
             FROM tool_calls
         """
         params: tuple[Any, ...] = ()
@@ -314,6 +356,10 @@ class DataStore:
                 tool_input_json=row["tool_input_json"],
                 tool_output_json=row["tool_output_json"],
                 status=row["status"],
+                latency_ms=row["latency_ms"],
+                retry_group=row["retry_group"],
+                attempt_number=row["attempt_number"],
+                error_message=row["error_message"],
                 created_at=self._parse_timestamp(row["created_at"]),
             )
             for row in rows
@@ -327,10 +373,11 @@ class DataStore:
         with self._connect_runtime_db() as connection:
             connection.execute(
                 """
-                INSERT INTO tool_calls (
-                    tool_call_id, session_id, tool_name, tool_input_json, tool_output_json, status, created_at
+                    INSERT INTO tool_calls (
+                    tool_call_id, session_id, tool_name, tool_input_json, tool_output_json,
+                    status, latency_ms, retry_group, attempt_number, error_message, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.tool_call_id,
@@ -339,6 +386,10 @@ class DataStore:
                     serialized_input,
                     serialized_output,
                     payload.status,
+                    payload.latency_ms,
+                    payload.retry_group,
+                    payload.attempt_number,
+                    payload.error_message,
                     timestamp,
                 ),
             )
@@ -350,6 +401,10 @@ class DataStore:
             tool_input_json=serialized_input,
             tool_output_json=serialized_output,
             status=payload.status,
+            latency_ms=payload.latency_ms,
+            retry_group=payload.retry_group,
+            attempt_number=payload.attempt_number,
+            error_message=payload.error_message,
             created_at=self._parse_timestamp(timestamp),
         )
 
@@ -435,6 +490,13 @@ class DataStore:
         connection = sqlite3.connect(self.runtime_db_path)
         connection.row_factory = sqlite3.Row
         return connection
+
+    def _ensure_column(self, connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+        rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
+        existing_columns = {row["name"] for row in rows}
+        if column in existing_columns:
+            return
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
     def _runtime_final_decision_from_row(self, row: sqlite3.Row) -> RuntimeFinalDecision:
         return RuntimeFinalDecision(

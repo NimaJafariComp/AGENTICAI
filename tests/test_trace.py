@@ -23,6 +23,9 @@ def test_trace_service_persists_session_event_tool_call_and_final_decision(tmp_p
         session_id=session_id,
         event_type="user_message",
         payload={"message": "I need a refund."},
+        latency_ms=12,
+        token_usage={"total_tokens": 33},
+        estimated_cost_usd=0.0,
     )
     tool_call = trace_service.log_tool_call(
         tool_call_id=tool_call_id,
@@ -31,6 +34,8 @@ def test_trace_service_persists_session_event_tool_call_and_final_decision(tmp_p
         tool_input={"order_id": "ORD-1001"},
         tool_output={"found": True},
         status="completed",
+        latency_ms=7,
+        attempt_number=1,
     )
     final_decision = trace_service.log_final_decision(
         decision_id=decision_id,
@@ -47,11 +52,17 @@ def test_trace_service_persists_session_event_tool_call_and_final_decision(tmp_p
 
     assert session.session_id == session_id
     assert session.customer_email == "demo@example.com"
+    assert session.intake_state_json is None
     assert event.event_type == "user_message"
     assert json.loads(event.payload_json) == {"message": "I need a refund."}
+    assert event.latency_ms == 12
+    assert json.loads(event.token_usage_json) == {"total_tokens": 33}
+    assert event.estimated_cost_usd == 0.0
     assert tool_call.tool_name == "lookup_order"
     assert json.loads(tool_call.tool_input_json) == {"order_id": "ORD-1001"}
     assert json.loads(tool_call.tool_output_json) == {"found": True}
+    assert tool_call.latency_ms == 7
+    assert tool_call.attempt_number == 1
     assert final_decision.decision_type == DecisionType.APPROVE
     assert json.loads(final_decision.reason_codes_json) == ["WITHIN_STANDARD_RETURN_WINDOW"]
     assert len(traces) == 1

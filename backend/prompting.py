@@ -10,11 +10,32 @@ If a decision has already been made, explain it clearly and calmly.
 """.strip()
 
 
-def build_missing_info_prompt(missing_fields: list[str]) -> str:
-    fields = ", ".join(missing_fields)
+FIELD_LABELS = {
+    "customer_email": "email address",
+    "customer_name": "full customer name",
+    "order_id": "order ID",
+    "item_id": "item ID or exact item name",
+    "issue_type": "issue with the item",
+}
+
+
+def build_missing_info_prompt(
+    missing_fields: list[str],
+    *,
+    known_fields: dict[str, object] | None = None,
+    note: str | None = None,
+) -> str:
+    fields = ", ".join(FIELD_LABELS.get(field, field) for field in missing_fields)
+    known = ", ".join(
+        f"{FIELD_LABELS.get(key, key)}: {value}"
+        for key, value in (known_fields or {}).items()
+        if value
+    )
+    note_text = f" Context: {note}." if note else ""
+    known_text = f" Already collected: {known}." if known else ""
     return (
         "Ask the customer for the missing refund details in one short message. "
-        f"Missing fields: {fields}."
+        f"Missing fields: {fields}.{known_text}{note_text}"
     )
 
 

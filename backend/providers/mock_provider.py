@@ -37,7 +37,7 @@ class MockProvider(BaseProvider):
                 content = "Your request has been escalated for human review under the refund policy."
         elif "refund" in lowered:
             content = (
-                "I can help with your refund request. Please share your email, order ID, "
+                "I can help with your refund request. Please share your full name, email, order ID, "
                 "item, and what went wrong so I can check eligibility."
             )
         elif "hello" in lowered or "hi" in lowered:
@@ -45,12 +45,32 @@ class MockProvider(BaseProvider):
         else:
             content = (
                 "I can help gather refund details and explain next steps. "
-                "Please share your email and order ID."
+                "Please share your full name, email, order ID, item, and issue."
             )
 
         return ProviderResponse(
             provider_name=self.provider_name,
             model_name=self.model_name,
             content=content,
+            token_usage=self._estimate_token_usage(messages=messages, system_prompt=system_prompt, content=content),
+            estimated_cost_usd=0.0,
             raw_response={"mock": True, "system_prompt_used": bool(system_prompt)},
         )
+
+    def _estimate_token_usage(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        system_prompt: str | None,
+        content: str,
+    ) -> dict[str, object]:
+        prompt_chars = sum(len(message.get("content", "")) for message in messages) + len(system_prompt or "")
+        completion_chars = len(content)
+        prompt_tokens = max(1, round(prompt_chars / 4))
+        completion_tokens = max(1, round(completion_chars / 4))
+        return {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+            "estimated": True,
+        }

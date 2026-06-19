@@ -4,7 +4,24 @@ Local demo app for an AI customer support agent that handles e-commerce refund r
 
 ## Status
 
-Current state: `Milestone 10` polish and walkthrough prep complete.
+Current state: core local demo is implemented and validated.
+
+Validated now:
+
+- local FastAPI backend starts successfully
+- local Streamlit UI starts successfully
+- test suite passes: `21 passed`
+- deterministic policy engine is the only authority for refund outcomes
+- protected terminal actions require backend-minted `decision_id` values
+- direct `MockProvider` mode works
+- admin traces now include latency, token usage, and estimated cost fields
+- one intentional retry/failure path is visible in admin logs for the retry demo order
+- intake flow now explicitly collects full name, email, order ID, item, and issue before evaluation
+- challenge demo paths exist for:
+  - approve
+  - deny
+  - escalate
+  - prompt-injection attempt
 
 Included:
 
@@ -25,10 +42,10 @@ Included:
 - Streamlit customer chat, admin dashboard, and policy viewer
 - demo walkthrough guide and helper make targets
 
-Not included yet:
+Not in scope:
 
-- refund tool execution beyond current local demo scope
-- optional production polish beyond the local demo
+- production deployment hardening
+- non-local hosting requirements
 
 ## Planned architecture
 
@@ -138,9 +155,16 @@ Fastest walkthrough path:
 1. Open Customer chat.
 2. Run `Approved refund`.
 3. Run `Denied: final sale`.
-4. Run `Escalate: amount over $500`.
+4. Run `Escalate + retry: amount over $500`.
 5. Run `Prompt injection attempt`.
 6. Open Admin dashboard and inspect traces.
+
+Challenge satisfaction summary:
+
+- satisfies the main architecture and safety constraints
+- satisfies the required approve / deny / escalate demo branches
+- satisfies local-first demo expectations
+- satisfies the trace completeness goals for retry visibility and latency/token logging
 
 Detailed script:
 

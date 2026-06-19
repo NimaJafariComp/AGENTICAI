@@ -108,6 +108,7 @@ class RuntimeSession(BaseModel):
 
     session_id: str
     customer_email: str | None = None
+    intake_state_json: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -119,6 +120,9 @@ class RuntimeTrace(BaseModel):
     session_id: str
     event_type: str
     payload_json: str
+    latency_ms: int | None = None
+    token_usage_json: str | None = None
+    estimated_cost_usd: float | None = None
     created_at: datetime
 
 
@@ -131,6 +135,10 @@ class RuntimeToolCall(BaseModel):
     tool_input_json: str
     tool_output_json: str | None = None
     status: str
+    latency_ms: int | None = None
+    retry_group: str | None = None
+    attempt_number: int = 1
+    error_message: str | None = None
     created_at: datetime
 
 
@@ -152,6 +160,7 @@ class CreateRuntimeSessionInput(BaseModel):
 
     session_id: str
     customer_email: str | None = None
+    intake_state: dict[str, object] | None = None
 
 
 class CreateRuntimeTraceInput(BaseModel):
@@ -161,6 +170,9 @@ class CreateRuntimeTraceInput(BaseModel):
     session_id: str
     event_type: str
     payload: dict | list | str | int | float | bool | None
+    latency_ms: int | None = None
+    token_usage: dict[str, object] | None = None
+    estimated_cost_usd: float | None = None
 
 
 class CreateRuntimeToolCallInput(BaseModel):
@@ -172,6 +184,10 @@ class CreateRuntimeToolCallInput(BaseModel):
     tool_input: dict | list | str | int | float | bool | None
     tool_output: dict | list | str | int | float | bool | None = None
     status: str
+    latency_ms: int | None = None
+    retry_group: str | None = None
+    attempt_number: int = 1
+    error_message: str | None = None
 
 
 class CreateRuntimeFinalDecisionInput(BaseModel):
@@ -237,6 +253,10 @@ class AgentTurnResult(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
     decision_type: str | None = None
     decision_id: str | None = None
+    latency_ms: int | None = None
+    token_usage: dict[str, object] = Field(default_factory=dict)
+    estimated_cost_usd: float | None = None
+    intake_state: dict[str, object] = Field(default_factory=dict)
     tool_outputs: dict[str, object] = Field(default_factory=dict)
 
 
@@ -268,6 +288,9 @@ class TraceResponse(BaseModel):
     session_id: str
     event_type: str
     payload: object
+    latency_ms: int | None = None
+    token_usage: dict[str, object] | None = None
+    estimated_cost_usd: float | None = None
     created_at: datetime
 
 
@@ -280,6 +303,10 @@ class ToolCallResponse(BaseModel):
     tool_input: object
     tool_output: object | None = None
     status: str
+    latency_ms: int | None = None
+    retry_group: str | None = None
+    attempt_number: int = 1
+    error_message: str | None = None
     created_at: datetime
 
 

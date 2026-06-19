@@ -1,15 +1,14 @@
 from __future__ import annotations
 
+import json
 import re
+import time
 from datetime import date
 from uuid import uuid4
 
 from backend.llm_client import LLMClient
-from backend.prompting import (
-    SYSTEM_PROMPT,
-    build_decision_prompt,
-    build_missing_info_prompt,
-)
+from backend.prompting import SYSTEM_PROMPT, build_decision_prompt, build_missing_info_prompt
+from backend.providers.base import ProviderResponse
 from backend.schemas import AgentTurnResult, DecisionType, RefundRequest
 from backend.tools import RefundTools, ToolAuthorizationError
 from backend.trace import TraceService
@@ -18,6 +17,12 @@ from backend.trace import TraceService
 EMAIL_RE = re.compile(r"[\w.\-+]+@[\w.\-]+\.\w+")
 ORDER_RE = re.compile(r"\bORD-\d{4}\b", re.IGNORECASE)
 ITEM_RE = re.compile(r"\bITEM-\d{4}-[A-Z]\b", re.IGNORECASE)
+NAME_PATTERNS = [
+    re.compile(r"\bmy name is ([A-Za-z][A-Za-z' -]+)", re.IGNORECASE),
+    re.compile(r"\bi am ([A-Za-z][A-Za-z' -]+)", re.IGNORECASE),
+    re.compile(r"\bthis is ([A-Za-z][A-Za-z' -]+)", re.IGNORECASE),
+]
+REQUIRED_FIELDS = ("customer_email", "customer_name", "order_id", "item_id", "issue_type")
 
 
 class RefundAgent:
@@ -38,6 +43,7 @@ class RefundAgent:
         message: str,
         today: date | None = None,
     ) -> AgentTurnResult:
+        turn_started_at = time.perf_counter()
         self.trace_service.start_session(session_id=session_id)
         self.trace_service.log_event(
             trace_id=f"trace-{uuid4()}",
@@ -46,53 +52,72 @@ class RefundAgent:
             payload={"message": message},
         )
 
-        extracted = self._extract_fields(message)
-        missing_fields = [field for field in ("customer_email", "order_id") if not extracted.get(field)]
+        intake_state = self._collect_intake_state(session_id=session_id)
+        self.trace_service.start_session(
+            session_id=session_id,
+            customer_email=self._string_or_none(intake_state.get("customer_email")),
+            intake_state=intake_state,
+        )
+
+        missing_fields = [field for field in REQUIRED_FIELDS if not intake_state.get(field)]
         if missing_fields:
-            assistant_message = self._generate_missing_info_message(
+            response = self._generate_missing_info_message(
                 session_id=session_id,
                 missing_fields=missing_fields,
+                intake_state=intake_state,
             )
-            return AgentTurnResult(
+            return self._build_needs_input_result(
                 session_id=session_id,
-                status="needs_input",
-                assistant_message=assistant_message,
+                intake_state=intake_state,
                 missing_fields=missing_fields,
+                response=response,
+                started_at=turn_started_at,
             )
 
-        customer = self.refund_tools.data_store.get_customer_by_email(extracted["customer_email"])
+        customer = self.refund_tools.data_store.get_customer_by_email(str(intake_state["customer_email"]))
         if customer is None:
             raise ToolAuthorizationError("Customer not found for provided email.")
 
-        order = self.refund_tools.data_store.get_order_by_id(extracted["order_id"])
+        if not self._names_match(str(intake_state["customer_name"]), customer.name):
+            response = self._generate_missing_info_message(
+                session_id=session_id,
+                missing_fields=["customer_name"],
+                intake_state=intake_state,
+                note="The provided customer name does not match the account. Ask for the full exact name on the order.",
+            )
+            return self._build_needs_input_result(
+                session_id=session_id,
+                intake_state=intake_state,
+                missing_fields=["customer_name"],
+                response=response,
+                started_at=turn_started_at,
+            )
+
+        order = self.refund_tools.data_store.get_order_by_id(str(intake_state["order_id"]))
         if order is None:
             raise ToolAuthorizationError("Order not found for provided order ID.")
+        if order.customer_id != customer.id:
+            raise ToolAuthorizationError("Provided order does not belong to the provided customer.")
 
-        item_id = extracted.get("item_id") or self._infer_single_item_id(order)
-        if item_id is None:
-            assistant_message = self._generate_missing_info_message(
-                session_id=session_id,
-                missing_fields=["item_id"],
-            )
-            return AgentTurnResult(
-                session_id=session_id,
-                status="needs_input",
-                assistant_message=assistant_message,
-                missing_fields=["item_id"],
-            )
+        item_id = str(intake_state["item_id"])
+        item = self.refund_tools.data_store.get_order_item(order.id, item_id)
+        if item is None:
+            raise ToolAuthorizationError("Provided item does not belong to the provided order.")
 
+        cumulative_claim_text = self._collect_user_message_text(session_id=session_id)
+        evidence_provided = self._infer_evidence_provided(cumulative_claim_text)
         request = RefundRequest(
             session_id=session_id,
             customer_email=customer.email,
-            customer_name=customer.name,
+            customer_name=str(intake_state["customer_name"]),
             order_id=order.id,
             item_id=item_id,
-            issue_type=self._infer_issue_type(message),
-            claim_text=message,
-            requested_amount=self._infer_requested_amount(message, order.total),
-            evidence_notes="Provided in message" if self._infer_evidence_provided(message) else None,
-            evidence_provided=self._infer_evidence_provided(message),
-            claim_inconsistent=self._infer_claim_inconsistent(message),
+            issue_type=str(intake_state["issue_type"]),
+            claim_text=cumulative_claim_text,
+            requested_amount=self._infer_requested_amount(cumulative_claim_text, item.price),
+            evidence_notes="Provided in message" if evidence_provided else None,
+            evidence_provided=evidence_provided,
+            claim_inconsistent=self._infer_claim_inconsistent(cumulative_claim_text),
         )
 
         eligibility = self.refund_tools.check_refund_eligibility(request=request, today=today)
@@ -102,17 +127,44 @@ class RefundAgent:
             decision_id=eligibility["decision_id"],
         )
 
-        assistant_message = self._generate_decision_message(
+        response = self._generate_decision_message(
             session_id=session_id,
             decision_type=eligibility["decision_type"],
             explanation=str(eligibility["explanation"]),
             reason_codes=list(eligibility["reason_codes"]),
         )
+        self._log_llm_response(session_id=session_id, response=response, response_kind="decision")
+
+        assistant_message = response.content
+        total_latency_ms = self._elapsed_ms(turn_started_at)
         self.trace_service.log_event(
             trace_id=f"trace-{uuid4()}",
             session_id=session_id,
             event_type="assistant_message",
-            payload={"message": assistant_message},
+            payload={
+                "message": assistant_message,
+                "decision_type": eligibility["decision_type"],
+                "decision_id": eligibility["decision_id"],
+            },
+            latency_ms=response.latency_ms,
+            token_usage=response.token_usage,
+            estimated_cost_usd=response.estimated_cost_usd,
+        )
+        self.trace_service.log_event(
+            trace_id=f"trace-{uuid4()}",
+            session_id=session_id,
+            event_type="turn_summary",
+            payload={
+                "status": "completed",
+                "decision_type": eligibility["decision_type"],
+                "decision_id": eligibility["decision_id"],
+                "reason_codes": eligibility["reason_codes"],
+                "policy_rules": eligibility["policy_rules"],
+                "intake_state": intake_state,
+            },
+            latency_ms=total_latency_ms,
+            token_usage=response.token_usage,
+            estimated_cost_usd=response.estimated_cost_usd,
         )
 
         return AgentTurnResult(
@@ -121,21 +173,83 @@ class RefundAgent:
             assistant_message=assistant_message,
             decision_type=str(eligibility["decision_type"]),
             decision_id=str(eligibility["decision_id"]),
+            latency_ms=total_latency_ms,
+            token_usage=response.token_usage or {},
+            estimated_cost_usd=response.estimated_cost_usd,
+            intake_state=intake_state,
             tool_outputs={
                 "check_refund_eligibility": eligibility,
                 "terminal_action": terminal_output,
             },
         )
 
-    def _generate_missing_info_message(self, *, session_id: str, missing_fields: list[str]) -> str:
-        response = self.llm_client.chat(
+    def _build_needs_input_result(
+        self,
+        *,
+        session_id: str,
+        intake_state: dict[str, object],
+        missing_fields: list[str],
+        response: ProviderResponse,
+        started_at: float,
+    ) -> AgentTurnResult:
+        self._log_llm_response(session_id=session_id, response=response, response_kind="missing_info")
+        assistant_message = response.content
+        total_latency_ms = self._elapsed_ms(started_at)
+        self.trace_service.log_event(
+            trace_id=f"trace-{uuid4()}",
+            session_id=session_id,
+            event_type="assistant_message",
+            payload={"message": assistant_message, "status": "needs_input"},
+            latency_ms=response.latency_ms,
+            token_usage=response.token_usage,
+            estimated_cost_usd=response.estimated_cost_usd,
+        )
+        self.trace_service.log_event(
+            trace_id=f"trace-{uuid4()}",
+            session_id=session_id,
+            event_type="turn_summary",
+            payload={
+                "status": "needs_input",
+                "missing_fields": missing_fields,
+                "intake_state": intake_state,
+            },
+            latency_ms=total_latency_ms,
+            token_usage=response.token_usage,
+            estimated_cost_usd=response.estimated_cost_usd,
+        )
+        return AgentTurnResult(
+            session_id=session_id,
+            status="needs_input",
+            assistant_message=assistant_message,
+            missing_fields=missing_fields,
+            latency_ms=total_latency_ms,
+            token_usage=response.token_usage or {},
+            estimated_cost_usd=response.estimated_cost_usd,
+            intake_state=intake_state,
+        )
+
+    def _generate_missing_info_message(
+        self,
+        *,
+        session_id: str,
+        missing_fields: list[str],
+        intake_state: dict[str, object],
+        note: str | None = None,
+    ) -> ProviderResponse:
+        return self.llm_client.chat(
             session_id=session_id,
             system_prompt=SYSTEM_PROMPT,
             messages=[
-                {"role": "user", "content": build_missing_info_prompt(missing_fields)},
+                {
+                    "role": "user",
+                    "content": build_missing_info_prompt(
+                        missing_fields,
+                        known_fields=intake_state,
+                        note=note,
+                    ),
+                },
             ],
         )
-        return response.content
 
     def _generate_decision_message(
         self,
@@ -144,8 +258,8 @@ class RefundAgent:
         decision_type: str,
         explanation: str,
         reason_codes: list[str],
-    ) -> str:
-        response = self.llm_client.chat(
+    ) -> ProviderResponse:
+        return self.llm_client.chat(
             session_id=session_id,
             system_prompt=SYSTEM_PROMPT,
             messages=[
@@ -159,9 +273,6 @@ class RefundAgent:
                 }
             ],
         )
-        if response.content:
-            return response.content
-        return explanation
 
     def _apply_terminal_action(
         self,
@@ -176,22 +287,87 @@ class RefundAgent:
             return self.refund_tools.deny_refund(session_id=session_id, decision_id=decision_id)
         return self.refund_tools.escalate_refund(session_id=session_id, decision_id=decision_id)
 
+    def _collect_intake_state(self, *, session_id: str) -> dict[str, object]:
+        session = self.refund_tools.data_store.get_session(session_id)
+        combined_text = self._collect_user_message_text(session_id=session_id)
+        extracted = self._extract_fields(combined_text)
+        if not extracted.get("customer_email") and session.customer_email:
+            extracted["customer_email"] = session.customer_email
+
+        order_id = self._string_or_none(extracted.get("order_id"))
+        if order_id:
+            order = self.refund_tools.data_store.get_order_by_id(order_id)
+            if order is not None and not extracted.get("item_id"):
+                item_id = self._match_item_name_to_order(combined_text, order)
+                if item_id:
+                    extracted["item_id"] = item_id
+
+        return extracted
+
+    def _collect_user_message_text(self, *, session_id: str) -> str:
+        messages: list[str] = []
+        for trace in self.refund_tools.data_store.list_traces(session_id=session_id):
+            if trace.event_type != "user_message":
+                continue
+            payload = json.loads(trace.payload_json)
+            message = payload.get("message")
+            if isinstance(message, str):
+                messages.append(message)
+        return "\n".join(messages)
+
+    def _log_llm_response(
+        self,
+        *,
+        session_id: str,
+        response: ProviderResponse,
+        response_kind: str,
+    ) -> None:
+        self.trace_service.log_event(
+            trace_id=f"trace-{uuid4()}",
+            session_id=session_id,
+            event_type="llm_response",
+            payload={
+                "response_kind": response_kind,
+                "provider_name": response.provider_name,
+                "model_name": response.model_name,
+                "content": response.content,
+            },
+            latency_ms=response.latency_ms,
+            token_usage=response.token_usage,
+            estimated_cost_usd=response.estimated_cost_usd,
+        )
+
     def _extract_fields(self, message: str) -> dict[str, str | None]:
         email_match = EMAIL_RE.search(message)
         order_match = ORDER_RE.search(message)
         item_match = ITEM_RE.search(message)
         return {
             "customer_email": email_match.group(0) if email_match else None,
+            "customer_name": self._extract_customer_name(message),
             "order_id": order_match.group(0).upper() if order_match else None,
             "item_id": item_match.group(0).upper() if item_match else None,
+            "issue_type": self._infer_issue_type(message),
         }
 
-    def _infer_single_item_id(self, order) -> str | None:
-        if len(order.items) == 1:
-            return order.items[0].item_id
+    def _extract_customer_name(self, message: str) -> str | None:
+        for pattern in NAME_PATTERNS:
+            match = pattern.search(message)
+            if not match:
+                continue
+            candidate = re.split(r"[,.!\n]", match.group(1).strip(), maxsplit=1)[0].strip()
+            candidate = re.sub(r"\s+", " ", candidate)
+            if len(candidate.split()) >= 2:
+                return candidate.title()
         return None
 
-    def _infer_issue_type(self, message: str) -> str:
+    def _match_item_name_to_order(self, message: str, order) -> str | None:
+        lowered = message.lower()
+        for item in order.items:
+            if item.name.lower() in lowered:
+                return item.item_id
+        return None
+
+    def _infer_issue_type(self, message: str) -> str | None:
         lowered = message.lower()
         if "damaged" in lowered:
             return "damaged"
@@ -199,7 +375,9 @@ class RefundAgent:
             return "defective"
         if "too small" in lowered or "too big" in lowered or "doesn't fit" in lowered:
             return "size_issue"
-        return "changed_mind"
+        if any(term in lowered for term in ("changed my mind", "don't want", "do not want", "no longer want")):
+            return "changed_mind"
+        return None
 
     def _infer_evidence_provided(self, message: str) -> bool:
         lowered = message.lower()
@@ -214,3 +392,16 @@ class RefundAgent:
         if amount_match:
             return float(amount_match.group(1))
         return default_amount
+
+    def _names_match(self, provided_name: str, expected_name: str) -> bool:
+        normalize = lambda value: re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+        return normalize(provided_name) == normalize(expected_name)
+
+    def _string_or_none(self, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    def _elapsed_ms(self, started_at: float) -> int:
+        return max(1, round((time.perf_counter() - started_at) * 1000))

@@ -12,6 +12,9 @@ class ProviderResponse(BaseModel):
     provider_name: str
     model_name: str
     content: str
+    latency_ms: int | None = None
+    token_usage: dict[str, Any] | None = None
+    estimated_cost_usd: float | None = None
     raw_response: dict[str, Any] | None = None
 
 
