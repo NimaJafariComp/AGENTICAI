@@ -27,3 +27,4 @@ streamlit.log
 *.log
 .dev/
 .dev
+frontendplan.md
