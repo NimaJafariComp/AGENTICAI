@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -11,11 +12,19 @@ from backend.schemas import (
     AppSeedData,
     Customer,
     CustomerSeedData,
+    CreateRuntimeFinalDecisionInput,
+    CreateRuntimeSessionInput,
+    CreateRuntimeToolCallInput,
+    CreateRuntimeTraceInput,
     DataSummary,
     Order,
     OrderSeedData,
     RefundPolicyDocument,
     PolicyFrontMatter,
+    RuntimeFinalDecision,
+    RuntimeSession,
+    RuntimeToolCall,
+    RuntimeTrace,
 )
 
 
@@ -144,10 +153,241 @@ class DataStore:
                 counts[table] = int(row["count"])
             return counts
 
+    def create_session(self, payload: CreateRuntimeSessionInput) -> RuntimeSession:
+        timestamp = self._utc_now()
+        with self._connect_runtime_db() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO sessions (session_id, customer_email, created_at, updated_at)
+                VALUES (
+                    ?,
+                    ?,
+                    COALESCE((SELECT created_at FROM sessions WHERE session_id = ?), ?),
+                    ?
+                )
+                """,
+                (
+                    payload.session_id,
+                    payload.customer_email,
+                    payload.session_id,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+
+        return self.get_session(payload.session_id)
+
+    def get_session(self, session_id: str) -> RuntimeSession:
+        with self._connect_runtime_db() as connection:
+            row = connection.execute(
+                """
+                SELECT session_id, customer_email, created_at, updated_at
+                FROM sessions
+                WHERE session_id = ?
+                """,
+                (session_id,),
+            ).fetchone()
+
+        if row is None:
+            raise DataStoreError(f"Session not found: {session_id}")
+
+        return RuntimeSession(
+            session_id=row["session_id"],
+            customer_email=row["customer_email"],
+            created_at=self._parse_timestamp(row["created_at"]),
+            updated_at=self._parse_timestamp(row["updated_at"]),
+        )
+
+    def list_traces(self, session_id: str | None = None) -> list[RuntimeTrace]:
+        query = """
+            SELECT trace_id, session_id, event_type, payload_json, created_at
+            FROM traces
+        """
+        params: tuple[Any, ...] = ()
+        if session_id is not None:
+            query += " WHERE session_id = ?"
+            params = (session_id,)
+        query += " ORDER BY created_at ASC"
+
+        with self._connect_runtime_db() as connection:
+            rows = connection.execute(query, params).fetchall()
+
+        return [
+            RuntimeTrace(
+                trace_id=row["trace_id"],
+                session_id=row["session_id"],
+                event_type=row["event_type"],
+                payload_json=row["payload_json"],
+                created_at=self._parse_timestamp(row["created_at"]),
+            )
+            for row in rows
+        ]
+
+    def append_trace(self, payload: CreateRuntimeTraceInput) -> RuntimeTrace:
+        timestamp = self._utc_now()
+        serialized_payload = self._serialize_json(payload.payload)
+
+        with self._connect_runtime_db() as connection:
+            connection.execute(
+                """
+                INSERT INTO traces (trace_id, session_id, event_type, payload_json, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    payload.trace_id,
+                    payload.session_id,
+                    payload.event_type,
+                    serialized_payload,
+                    timestamp,
+                ),
+            )
+
+        return RuntimeTrace(
+            trace_id=payload.trace_id,
+            session_id=payload.session_id,
+            event_type=payload.event_type,
+            payload_json=serialized_payload,
+            created_at=self._parse_timestamp(timestamp),
+        )
+
+    def list_tool_calls(self, session_id: str | None = None) -> list[RuntimeToolCall]:
+        query = """
+            SELECT tool_call_id, session_id, tool_name, tool_input_json, tool_output_json, status, created_at
+            FROM tool_calls
+        """
+        params: tuple[Any, ...] = ()
+        if session_id is not None:
+            query += " WHERE session_id = ?"
+            params = (session_id,)
+        query += " ORDER BY created_at ASC"
+
+        with self._connect_runtime_db() as connection:
+            rows = connection.execute(query, params).fetchall()
+
+        return [
+            RuntimeToolCall(
+                tool_call_id=row["tool_call_id"],
+                session_id=row["session_id"],
+                tool_name=row["tool_name"],
+                tool_input_json=row["tool_input_json"],
+                tool_output_json=row["tool_output_json"],
+                status=row["status"],
+                created_at=self._parse_timestamp(row["created_at"]),
+            )
+            for row in rows
+        ]
+
+    def create_tool_call(self, payload: CreateRuntimeToolCallInput) -> RuntimeToolCall:
+        timestamp = self._utc_now()
+        serialized_input = self._serialize_json(payload.tool_input)
+        serialized_output = self._serialize_json(payload.tool_output)
+
+        with self._connect_runtime_db() as connection:
+            connection.execute(
+                """
+                INSERT INTO tool_calls (
+                    tool_call_id, session_id, tool_name, tool_input_json, tool_output_json, status, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload.tool_call_id,
+                    payload.session_id,
+                    payload.tool_name,
+                    serialized_input,
+                    serialized_output,
+                    payload.status,
+                    timestamp,
+                ),
+            )
+
+        return RuntimeToolCall(
+            tool_call_id=payload.tool_call_id,
+            session_id=payload.session_id,
+            tool_name=payload.tool_name,
+            tool_input_json=serialized_input,
+            tool_output_json=serialized_output,
+            status=payload.status,
+            created_at=self._parse_timestamp(timestamp),
+        )
+
+    def list_final_decisions(self, session_id: str | None = None) -> list[RuntimeFinalDecision]:
+        query = """
+            SELECT decision_id, session_id, decision_type, used, request_fingerprint,
+                   reason_codes_json, created_at, used_at
+            FROM final_decisions
+        """
+        params: tuple[Any, ...] = ()
+        if session_id is not None:
+            query += " WHERE session_id = ?"
+            params = (session_id,)
+        query += " ORDER BY created_at ASC"
+
+        with self._connect_runtime_db() as connection:
+            rows = connection.execute(query, params).fetchall()
+
+        return [self._runtime_final_decision_from_row(row) for row in rows]
+
+    def create_final_decision(
+        self, payload: CreateRuntimeFinalDecisionInput
+    ) -> RuntimeFinalDecision:
+        timestamp = self._utc_now()
+        serialized_reason_codes = self._serialize_json(payload.reason_codes)
+
+        with self._connect_runtime_db() as connection:
+            connection.execute(
+                """
+                INSERT INTO final_decisions (
+                    decision_id, session_id, decision_type, used,
+                    request_fingerprint, reason_codes_json, created_at, used_at
+                )
+                VALUES (?, ?, ?, 0, ?, ?, ?, NULL)
+                """,
+                (
+                    payload.decision_id,
+                    payload.session_id,
+                    payload.decision_type.value,
+                    payload.request_fingerprint,
+                    serialized_reason_codes,
+                    timestamp,
+                ),
+            )
+
+        return self.get_final_decision(payload.decision_id)
+
+    def get_final_decision(self, decision_id: str) -> RuntimeFinalDecision:
+        with self._connect_runtime_db() as connection:
+            row = connection.execute(
+                """
+                SELECT decision_id, session_id, decision_type, used, request_fingerprint,
+                       reason_codes_json, created_at, used_at
+                FROM final_decisions
+                WHERE decision_id = ?
+                """,
+                (decision_id,),
+            ).fetchone()
+
+        if row is None:
+            raise DataStoreError(f"Final decision not found: {decision_id}")
+
+        return self._runtime_final_decision_from_row(row)
+
     def _connect_runtime_db(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.runtime_db_path)
         connection.row_factory = sqlite3.Row
         return connection
+
+    def _runtime_final_decision_from_row(self, row: sqlite3.Row) -> RuntimeFinalDecision:
+        return RuntimeFinalDecision(
+            decision_id=row["decision_id"],
+            session_id=row["session_id"],
+            decision_type=row["decision_type"],
+            used=bool(row["used"]),
+            request_fingerprint=row["request_fingerprint"],
+            reason_codes_json=row["reason_codes_json"],
+            created_at=self._parse_timestamp(row["created_at"]),
+            used_at=self._parse_timestamp(row["used_at"]) if row["used_at"] else None,
+        )
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         try:
@@ -179,3 +419,14 @@ class DataStore:
             raise DataStoreError("Policy front matter must parse to an object")
 
         return metadata, markdown_body
+
+    def _serialize_json(self, payload: Any) -> str | None:
+        if payload is None:
+            return None
+        return json.dumps(payload, sort_keys=True)
+
+    def _utc_now(self) -> str:
+        return datetime.now(UTC).isoformat()
+
+    def _parse_timestamp(self, timestamp: str) -> datetime:
+        return datetime.fromisoformat(timestamp)

@@ -11,12 +11,13 @@ def test_health_reports_milestone_2_and_seed_counts() -> None:
     payload = response.json()
 
     assert payload["status"] == "ok"
-    assert payload["milestone"] == "3"
+    assert payload["milestone"] == "4"
     assert payload["seed_data"]["customer_count"] == 15
     assert payload["seed_data"]["order_count"] == 18
-    assert payload["runtime_tables"] == {
-        "sessions": 0,
-        "traces": 0,
-        "tool_calls": 0,
-        "final_decisions": 0,
+    assert set(payload["runtime_tables"]) == {
+        "sessions",
+        "traces",
+        "tool_calls",
+        "final_decisions",
     }
+    assert all(isinstance(value, int) and value >= 0 for value in payload["runtime_tables"].values())

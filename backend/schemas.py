@@ -147,6 +147,43 @@ class RuntimeFinalDecision(BaseModel):
     used_at: datetime | None = None
 
 
+class CreateRuntimeSessionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    customer_email: str | None = None
+
+
+class CreateRuntimeTraceInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    trace_id: str
+    session_id: str
+    event_type: str
+    payload: dict | list | str | int | float | bool | None
+
+
+class CreateRuntimeToolCallInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_call_id: str
+    session_id: str
+    tool_name: str
+    tool_input: dict | list | str | int | float | bool | None
+    tool_output: dict | list | str | int | float | bool | None = None
+    status: str
+
+
+class CreateRuntimeFinalDecisionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision_id: str
+    session_id: str
+    decision_type: DecisionType
+    request_fingerprint: str
+    reason_codes: list[str]
+
+
 class AppSeedData(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
