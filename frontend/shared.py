@@ -405,7 +405,8 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 [data-testid="stCaption"] p { font-size:0.8rem !important; }
 hr { margin:0.6rem 0 !important; }
 code { border-radius:4px !important; padding:0.1rem 0.35rem !important; font-family:"JetBrains Mono",monospace !important; font-size:0.85em !important; border-width:1px; border-style:solid; }
-pre, pre code { border-radius:6px !important; padding:0.6rem 0.8rem !important; font-size:0.82rem !important; border-width:1px; border-style:solid; }
+pre { border-radius:6px !important; padding:0.85rem 1rem !important; font-size:0.82rem !important; line-height:1.65 !important; border-width:1px; border-style:solid; overflow:auto !important; }
+pre code { padding:0 !important; border:0 !important; font-size:inherit !important; line-height:inherit !important; background:transparent !important; }
 [data-testid="stJson"] { border-radius:6px !important; }
 [data-testid="stJson"] > div { background:transparent !important; }
 """
@@ -507,7 +508,8 @@ def _inject_dark() -> None:
 hr {{ border-color:rgba(230,237,243,0.08) !important; }}
 p  {{ color:#e6edf3; }}
 code {{ background:rgba(230,237,243,0.05) !important; color:#4493f8 !important; border-color:rgba(230,237,243,0.08) !important; }}
-pre, pre code {{ background:#161b22 !important; color:#e6edf3 !important; border-color:rgba(230,237,243,0.08) !important; }}
+pre {{ background:#161b22 !important; color:#e6edf3 !important; border-color:rgba(230,237,243,0.08) !important; }}
+pre code {{ background:transparent !important; color:inherit !important; border-color:transparent !important; }}
 [data-testid="stJson"] {{ background:#161b22 !important; }}
 [data-testid="stJson"] span[style], [data-testid="stJson"] .cm-string,
 [data-testid="stJson"] .cm-number, [data-testid="stJson"] .cm-property {{ color:#4493f8 !important; }}
@@ -621,7 +623,8 @@ def _inject_light() -> None:
 hr {{ border-color:rgba(17,24,39,0.08) !important; }}
 p  {{ color:#111827; }}
 code {{ background:rgba(17,24,39,0.04) !important; color:#2563eb !important; border-color:rgba(17,24,39,0.08) !important; }}
-pre, pre code {{ background:#ffffff !important; color:#111827 !important; border-color:rgba(17,24,39,0.08) !important; }}
+pre {{ background:#ffffff !important; color:#111827 !important; border-color:rgba(17,24,39,0.08) !important; }}
+pre code {{ background:transparent !important; color:inherit !important; border-color:transparent !important; }}
 [data-testid="stJson"] {{ background:#ffffff !important; }}
 [data-testid="stJson"] span[style], [data-testid="stJson"] .cm-string,
 [data-testid="stJson"] .cm-number, [data-testid="stJson"] .cm-property {{ color:#2563eb !important; }}
