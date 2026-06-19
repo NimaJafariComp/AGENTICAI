@@ -17,7 +17,7 @@ def health() -> dict[str, object]:
     summary = data_store.summary()
     return {
         "status": "ok",
-        "milestone": "2",
+        "milestone": "3",
         "seed_data": summary.model_dump(),
         "runtime_tables": data_store.runtime_table_counts(),
     }

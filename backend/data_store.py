@@ -74,6 +74,12 @@ class DataStore:
     def get_order_by_id(self, order_id: str) -> Order | None:
         return next((order for order in self.load_orders() if order.id == order_id), None)
 
+    def get_order_item(self, order_id: str, item_id: str):
+        order = self.get_order_by_id(order_id)
+        if order is None:
+            return None
+        return next((item for item in order.items if item.item_id == item_id), None)
+
     def list_orders_for_customer(self, customer_id: str) -> list[Order]:
         return [order for order in self.load_orders() if order.customer_id == customer_id]
 

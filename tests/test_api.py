@@ -11,7 +11,7 @@ def test_health_reports_milestone_2_and_seed_counts() -> None:
     payload = response.json()
 
     assert payload["status"] == "ok"
-    assert payload["milestone"] == "2"
+    assert payload["milestone"] == "3"
     assert payload["seed_data"]["customer_count"] == 15
     assert payload["seed_data"]["order_count"] == 18
     assert payload["runtime_tables"] == {

@@ -162,3 +162,30 @@ class DataSummary(BaseModel):
     order_count: int = Field(ge=0)
     policy_name: str
     policy_version: str
+
+
+class RefundRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    customer_email: str
+    customer_name: str
+    order_id: str
+    item_id: str
+    issue_type: str
+    claim_text: str
+    requested_amount: float = Field(ge=0)
+    evidence_notes: str | None = None
+    evidence_provided: bool = False
+    claim_inconsistent: bool = False
+
+
+class PolicyDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision_type: DecisionType
+    reason_codes: list[str]
+    policy_rules: list[str]
+    explanation: str
+    eligible: bool
+    requires_human_review: bool

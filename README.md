@@ -4,7 +4,7 @@ Local demo app for an AI customer support agent that handles e-commerce refund r
 
 ## Status
 
-Current state: `Milestone 2` foundation complete.
+Current state: `Milestone 3` policy engine complete.
 
 Included:
 
@@ -16,11 +16,11 @@ Included:
 - local developer startup command with `make dev`
 - Pydantic schemas for seed, policy, and runtime records
 - seed-data loading and runtime SQLite initialization
+- deterministic refund policy engine with focused rule tests
 
 Not included yet:
 
 - full agent loop
-- deterministic policy engine implementation
 - runtime write paths for traces and decisions
 - refund tool execution
 
@@ -113,10 +113,9 @@ Milestone 1 includes:
 
 ## Next milestones
 
-1. deterministic policy engine
-2. trace logging
-3. protected refund tools
-4. provider adapter and mock fallback
-5. agent loop
-6. API routes
-7. chat UI and admin dashboard
+1. trace logging
+2. protected refund tools
+3. provider adapter and mock fallback
+4. agent loop
+5. API routes
+6. chat UI and admin dashboard
