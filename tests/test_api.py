@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from backend.main import app
 
 
-def test_health_reports_milestone_2_and_seed_counts() -> None:
+def test_health_reports_current_milestone_and_seed_counts() -> None:
     with TestClient(app) as client:
         response = client.get("/health")
 
@@ -11,7 +11,7 @@ def test_health_reports_milestone_2_and_seed_counts() -> None:
     payload = response.json()
 
     assert payload["status"] == "ok"
-    assert payload["milestone"] == "4"
+    assert payload["milestone"] == "5"
     assert payload["seed_data"]["customer_count"] == 15
     assert payload["seed_data"]["order_count"] == 18
     assert set(payload["runtime_tables"]) == {

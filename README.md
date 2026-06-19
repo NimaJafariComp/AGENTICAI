@@ -4,7 +4,7 @@ Local demo app for an AI customer support agent that handles e-commerce refund r
 
 ## Status
 
-Current state: `Milestone 4` runtime trace layer complete.
+Current state: `Milestone 5` protected refund tools complete.
 
 Included:
 
@@ -18,12 +18,13 @@ Included:
 - seed-data loading and runtime SQLite initialization
 - deterministic refund policy engine with focused rule tests
 - runtime trace/session/tool-call/final-decision persistence layer
+- protected refund tools with `decision_id` enforcement
 
 Not included yet:
 
 - full agent loop
 - refund tool execution
-- protected terminal action enforcement
+- provider adapter and mock fallback behavior
 
 ## Planned architecture
 
@@ -114,8 +115,7 @@ Milestone 1 includes:
 
 ## Next milestones
 
-1. protected refund tools
-2. provider adapter and mock fallback
-3. agent loop
-4. API routes
-5. chat UI and admin dashboard
+1. provider adapter and mock fallback
+2. agent loop
+3. API routes
+4. chat UI and admin dashboard

@@ -372,6 +372,23 @@ class DataStore:
 
         return self._runtime_final_decision_from_row(row)
 
+    def mark_final_decision_used(self, decision_id: str) -> RuntimeFinalDecision:
+        timestamp = self._utc_now()
+        with self._connect_runtime_db() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE final_decisions
+                SET used = 1, used_at = ?
+                WHERE decision_id = ? AND used = 0
+                """,
+                (timestamp, decision_id),
+            )
+
+        if cursor.rowcount == 0:
+            raise DataStoreError(f"Final decision already used or not found: {decision_id}")
+
+        return self.get_final_decision(decision_id)
+
     def _connect_runtime_db(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.runtime_db_path)
         connection.row_factory = sqlite3.Row
