@@ -4,7 +4,7 @@ Local demo app for an AI customer support agent that handles e-commerce refund r
 
 ## Status
 
-Current state: `Milestone 8` API routes complete.
+Current state: `Milestone 9` local demo UI complete.
 
 Included:
 
@@ -22,11 +22,12 @@ Included:
 - Ollama default provider adapter with direct mock mode and fallback logging
 - simple refund agent loop with tool orchestration
 - API routes for chat, policy, lookups, and admin trace reads
+- Streamlit customer chat, admin dashboard, and policy viewer
 
 Not included yet:
 
 - refund tool execution
-- UI wiring to the agent loop
+- optional production polish beyond the local demo
 
 ## Planned architecture
 
@@ -64,6 +65,7 @@ LLM_PROVIDER=ollama
 OLLAMA_MODE=local
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1:8b
+BACKEND_BASE_URL=http://localhost:8000
 ```
 
 To force mock mode:
@@ -117,4 +119,4 @@ Milestone 1 includes:
 
 ## Next milestones
 
-1. chat UI and admin dashboard
+1. final polish and walkthrough prep
