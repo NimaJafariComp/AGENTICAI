@@ -5,10 +5,11 @@ No open/close HTML div tricks. Each st.markdown call is self-contained.
 from __future__ import annotations
 
 import queue as _queue
-from urllib.parse import quote as _urlquote
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
+import streamlit.components.v1 as _components
 
 from frontend.shared import (
     DECISION_COPY,
@@ -25,53 +26,14 @@ from frontend.shared import (
 )
 
 _VOICE_PLACEHOLDER: dict[str, str] = {
-    "idle":     "Describe the refund request…",
+    "idle":      "Describe the refund request…",
     "recording": "● Listening…",
-    "ready":    "Transcript ready — edit or send",
+    "ready":     "Transcript ready — edit or send",
 }
 
-_SPEECH_JS = """
-<script>
-(function () {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { console.warn('Web Speech API not supported'); return; }
-
-  const rec = new SR();
-  rec.continuous      = true;
-  rec.interimResults  = true;
-  rec.lang            = 'en-US';
-
-  let final = '';
-
-  function pushToTextarea(text) {
-    const parent = window.parent.document;
-    const ta = parent.querySelector('textarea');
-    if (!ta) return;
-    const setter = Object.getOwnPropertyDescriptor(
-      window.parent.HTMLTextAreaElement.prototype, 'value'
-    ).set;
-    setter.call(ta, text);
-    ta.dispatchEvent(new window.parent.Event('input', { bubbles: true }));
-  }
-
-  rec.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-      else interim += e.results[i][0].transcript;
-    }
-    pushToTextarea(final + interim);
-  };
-
-  rec.onend = () => { try { rec.start(); } catch (_) {} };   // restart on silence timeout
-  rec.onerror = (e) => { if (e.error !== 'no-speech') console.error('SR error:', e.error); };
-
-  rec.start();
-})();
-</script>
-"""
-
-_SPEECH_IFRAME_SRC = f"data:text/html;charset=utf-8,{_urlquote(_SPEECH_JS)}"
+# Declared component gets allow="microphone" on its iframe automatically
+_SPEECH_COMPONENT_DIR = Path(__file__).resolve().parent.parent / "components" / "speech"
+_speech_input = _components.declare_component("speech_input", path=str(_SPEECH_COMPONENT_DIR))
 
 
 # ── Page entry ────────────────────────────────────────────────────────────────
@@ -205,9 +167,11 @@ def render_composer() -> None:
 
     st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
 
-    # Live speech recognition — invisible iframe, updates textarea via React synthetic events
+    # Live speech recognition via declared component (has allow="microphone" on iframe)
     if voice_state == "recording":
-        st.iframe(_SPEECH_IFRAME_SRC, height=1, scrolling=False)
+        result = _speech_input(default={"text": "", "final_text": ""}, key="speech_comp")
+        if result and result.get("text"):
+            st.session_state[SK.CHAT_DRAFT] = result["text"]
 
     # Status line above textarea (non-idle only)
     if voice_state == "recording":

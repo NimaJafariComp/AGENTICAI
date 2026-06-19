@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>html,body{margin:0;padding:0;height:0;overflow:hidden;}</style>
+</head>
+<body>
+<script>
+// Streamlit component low-level protocol (no JS lib needed)
+function post(type, payload) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type }, payload), "*");
+}
+
+post("streamlit:componentReady", { apiVersion: 1 });
+post("streamlit:setFrameHeight", { height: 0 });
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) {
+  post("streamlit:setComponentValue", { value: { error: "not_supported", text: "" } });
+} else {
+  const rec = new SR();
+  rec.continuous     = true;
+  rec.interimResults = true;
+  rec.lang           = "en-US";
+
+  let final = "";
+  let debounce;
+
+  function send(text) {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      post("streamlit:setComponentValue", { value: { text, final_text: final } });
+    }, 150);
+  }
+
+  rec.onresult = (e) => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
+      else interim += e.results[i][0].transcript;
+    }
+    send(final + interim);
+  };
+
+  // Restart automatically after silence timeout
+  rec.onend = () => { try { rec.start(); } catch (_) {} };
+
+  rec.onerror = (e) => {
+    if (e.error !== "no-speech") {
+      post("streamlit:setComponentValue", { value: { error: e.error, text: final } });
+    }
+  };
+
+  rec.start();
+}
+</script>
+</body>
+</html>
