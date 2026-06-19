@@ -25,13 +25,40 @@ if (!SR) {
 
   let final = "";
   let debounce;
+  let shouldRun = false;
+  let isRecording = false;
 
   function send(text) {
     clearTimeout(debounce);
     debounce = setTimeout(() => {
-      post("streamlit:setComponentValue", { value: { text, final_text: final } });
+      post("streamlit:setComponentValue", { value: { text, final_text: final, listening: isRecording } });
     }, 150);
   }
+
+  function startRecording() {
+    if (!shouldRun || isRecording) return;
+    try {
+      rec.start();
+    } catch (error) {
+      if (error && error.name !== "InvalidStateError") {
+        post("streamlit:setComponentValue", {
+          value: { error: error.name || "start_failed", text: final, listening: false }
+        });
+      }
+    }
+  }
+
+  function stopRecording() {
+    if (!isRecording) return;
+    try {
+      rec.stop();
+    } catch (_) {}
+  }
+
+  rec.onstart = () => {
+    isRecording = true;
+    post("streamlit:setComponentValue", { value: { text: final, final_text: final, listening: true } });
+  };
 
   rec.onresult = (e) => {
     let interim = "";
@@ -43,15 +70,37 @@ if (!SR) {
   };
 
   // Restart automatically after silence timeout
-  rec.onend = () => { try { rec.start(); } catch (_) {} };
+  rec.onend = () => {
+    isRecording = false;
+    if (shouldRun) startRecording();
+  };
 
   rec.onerror = (e) => {
-    if (e.error !== "no-speech") {
-      post("streamlit:setComponentValue", { value: { error: e.error, text: final } });
+    isRecording = false;
+    if (e.error !== "no-speech" && !(e.error === "aborted" && !shouldRun)) {
+      post("streamlit:setComponentValue", { value: { error: e.error, text: final, listening: false } });
     }
   };
 
-  rec.start();
+  window.addEventListener("message", (event) => {
+    const message = event.data;
+    if (!message || message.type !== "streamlit:render") return;
+
+    post("streamlit:setFrameHeight", { height: 0 });
+
+    const args = message.args || {};
+    const nextShouldRun = Boolean(args.active);
+
+    if (nextShouldRun && !shouldRun) {
+      final = "";
+      send("");
+    }
+
+    shouldRun = nextShouldRun;
+
+    if (shouldRun) startRecording();
+    else stopRecording();
+  });
 }
 </script>
 </body>

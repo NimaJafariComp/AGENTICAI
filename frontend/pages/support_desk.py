@@ -164,26 +164,39 @@ def _render_message(msg: dict[str, Any]) -> None:
 def render_composer() -> None:
     voice_state = st.session_state.get(SK.VOICE_STATE, "idle")
     processing  = st.session_state.get(SK.PROCESSING, False)
+    composer_nonce = st.session_state.setdefault("composer_draft_nonce", 0)
+    composer_key = f"composer_draft_{composer_nonce}"
 
-    st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
 
-    # Live speech recognition via declared component (has allow="microphone" on iframe)
-    if voice_state == "recording":
-        result = _speech_input(default={"text": "", "final_text": ""}, key="speech_comp")
-        if result and result.get("text"):
-            st.session_state[SK.CHAT_DRAFT] = result["text"]
+    # Keep the speech component mounted so Streamlit doesn't add/remove layout space.
+    result = _speech_input(
+        active=voice_state == "recording",
+        default={"text": "", "final_text": ""},
+        key="speech_comp",
+        height=0,
+    )
+    if result and result.get("error"):
+        st.session_state[SK.VOICE_STATE] = "idle"
+        voice_state = "idle"
+        st.warning(f"Voice input unavailable: {result['error']}")
+    elif voice_state == "recording" and result and result.get("text") is not None:
+        transcript = result["text"]
+        st.session_state[SK.CHAT_DRAFT] = transcript
+        st.session_state[composer_key] = transcript
 
-    # Status line above textarea (non-idle only)
-    if voice_state == "recording":
-        st.markdown(
-            '<p style="font-size:0.78rem;color:var(--deny);margin:0 0 0.25rem">● Recording — tap ⏹ to stop</p>',
-            unsafe_allow_html=True,
-        )
-    elif voice_state == "ready":
-        st.markdown(
-            '<p style="font-size:0.78rem;color:var(--approve);margin:0 0 0.25rem">✓ Transcript ready — edit or send</p>',
-            unsafe_allow_html=True,
-        )
+    # Reserve a stable status slot so the textarea doesn't jump when voice state changes.
+    status_markup = (
+        '<span style="color:var(--muted)">Voice or type your request below</span>'
+        if voice_state == "idle"
+        else '<span style="color:var(--deny)">● Recording — tap ⏹ to stop</span>'
+        if voice_state == "recording"
+        else '<span style="color:var(--approve)">✓ Transcript ready — edit or send</span>'
+    )
+    st.markdown(
+        f'<div style="min-height:1.25rem;margin:0 0 0.25rem;font-size:0.78rem">{status_markup}</div>',
+        unsafe_allow_html=True,
+    )
 
     draft = st.text_area(
         "Message",
@@ -192,47 +205,55 @@ def render_composer() -> None:
         height=72,
         disabled=processing,
         label_visibility="collapsed",
-        key="composer_draft",
+        key=composer_key,
     )
     # Don't overwrite draft during recording (JS is writing to it)
     if voice_state != "recording":
         st.session_state[SK.CHAT_DRAFT] = draft
 
-    c_mic, c_clear, c_send = st.columns([1, 1, 4.5])
+    c_actions, c_cancel, c_send = st.columns([0.85, 1.1, 4.9], gap="small")
 
-    with c_mic:
+    with c_actions:
         if voice_state == "idle" and not processing:
-            if st.button("🎙", key="mic_btn", help="Start voice input"):
+            if st.button("🎙", key="mic_btn"):
                 st.session_state[SK.CHAT_DRAFT]  = ""
+                st.session_state["composer_draft_nonce"] += 1
                 st.session_state[SK.VOICE_STATE] = "recording"
                 st.rerun()
         elif voice_state == "recording":
-            if st.button("⏹", key="stop_rec", help="Stop recording"):
+            if st.button("⏹", key="stop_rec"):
                 # Capture whatever JS wrote to the textarea widget before rerun
-                captured = st.session_state.get("composer_draft", "").strip()
+                captured = st.session_state.get(composer_key, "").strip()
                 st.session_state[SK.CHAT_DRAFT]  = captured
                 st.session_state[SK.VOICE_STATE] = "ready" if captured else "idle"
                 st.rerun()
         elif voice_state == "ready":
-            if st.button("🔁", key="rerecord_btn", help="Re-record"):
+            if st.button("🔁", key="rerecord_btn"):
                 st.session_state[SK.CHAT_DRAFT]  = ""
+                st.session_state["composer_draft_nonce"] += 1
                 st.session_state[SK.VOICE_STATE] = "recording"
                 st.rerun()
 
-    with c_clear:
+    with c_cancel:
         if voice_state in ("recording", "ready"):
-            if st.button("✕", key="cancel_rec", help="Cancel"):
-                st.session_state[SK.CHAT_DRAFT]  = ""
+            if st.button("Cancel", key="cancel_rec", use_container_width=True):
+                st.session_state[SK.CHAT_DRAFT] = ""
+                st.session_state["composer_draft_nonce"] += 1
                 st.session_state[SK.VOICE_STATE] = "idle"
                 st.rerun()
+        else:
+            st.markdown('<div style="height:2.5rem"></div>', unsafe_allow_html=True)
 
     with c_send:
-        current_draft = st.session_state.get(SK.CHAT_DRAFT, "")
-        disabled = not current_draft.strip() or voice_state == "recording" or processing
+        current_draft = draft if voice_state != "recording" else st.session_state.get(SK.CHAT_DRAFT, "")
+        disabled = voice_state == "recording" or processing
         if st.button("Send →", type="primary", disabled=disabled,
                      key="send_btn", use_container_width=True):
             msg = current_draft.strip()
+            if not msg:
+                return
             st.session_state[SK.CHAT_DRAFT]  = ""
+            st.session_state["composer_draft_nonce"] += 1
             st.session_state[SK.VOICE_STATE] = "idle"
             st.session_state[SK.CHAT_MESSAGES].append({"role": "user", "content": msg})
             _kick_send(msg)

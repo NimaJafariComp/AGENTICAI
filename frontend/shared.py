@@ -357,8 +357,8 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 .seal { display:inline-flex; align-items:center; gap:0.35rem; margin-top:0.45rem; padding:0.2rem 0.5rem; border-radius:5px; border-width:1.5px; border-style:solid; font-family:"JetBrains Mono",monospace; font-size:0.67rem; font-weight:500; letter-spacing:0.07em; text-transform:uppercase; }
 .seal::before { content:""; width:6px; height:6px; border-radius:2px; }
 
-.empty-state { border-width:1px; border-style:dashed; border-radius:12px; padding:2.5rem 1.5rem; text-align:center; font-size:0.9rem; margin:0.5rem 0 1rem; }
-.es-title    { font-size:1.05rem; font-weight:600; margin:0 0 0.4rem; }
+.empty-state { border-width:1px; border-style:dashed; border-radius:12px; padding:1.5rem 1.25rem; text-align:center; font-size:0.9rem; margin:0.2rem 0 0.45rem; }
+.es-title    { font-size:0.98rem; font-weight:600; margin:0 0 0.3rem; }
 
 .intel-key { font-family:"JetBrains Mono",monospace; font-size:0.6rem; letter-spacing:0.09em; text-transform:uppercase; margin:0.6rem 0 0.15rem; }
 .intel-val { font-size:0.88rem; font-weight:500; margin:0; }
@@ -511,6 +511,7 @@ pre, pre code {{ background:#161b22 !important; color:#e6edf3 !important; border
 [data-testid="stJson"] span[style], [data-testid="stJson"] .cm-string,
 [data-testid="stJson"] .cm-number, [data-testid="stJson"] .cm-property {{ color:#4493f8 !important; }}
 [data-testid="stJson"] .cm-punctuation, [data-testid="stJson"] .cm-bracket {{ color:#8b949e !important; }}
+[data-testid="stJson"] .cm-atom, [data-testid="stJson"] .cm-bool, [data-testid="stJson"] .cm-null {{ color:#e3b341 !important; background:rgba(227,179,65,0.14) !important; border-radius:4px !important; }}
 [data-testid="stTabs"] [data-baseweb="tab-panel"] {{ background:#0d1117 !important; }}
 </style>""", unsafe_allow_html=True)
 
@@ -624,6 +625,8 @@ pre, pre code {{ background:#ffffff !important; color:#111827 !important; border
 [data-testid="stJson"] span[style], [data-testid="stJson"] .cm-string,
 [data-testid="stJson"] .cm-number, [data-testid="stJson"] .cm-property {{ color:#2563eb !important; }}
 [data-testid="stJson"] .cm-punctuation, [data-testid="stJson"] .cm-bracket {{ color:#6b7280 !important; }}
+[data-testid="stJson"] span[style] {{ background:transparent !important; border:0 !important; box-shadow:none !important; padding:0 !important; border-radius:0 !important; }}
+[data-testid="stJson"] .cm-atom, [data-testid="stJson"] .cm-bool, [data-testid="stJson"] .cm-null {{ color:#2563eb !important; background:transparent !important; border-radius:0 !important; }}
 [data-testid="stTabs"] [data-baseweb="tab-panel"] {{ background:#f3f4f6 !important; }}
 [data-testid="stBaseButton-primary"]:disabled {{ background:rgba(37,99,235,0.12) !important; border-color:transparent !important; color:rgba(37,99,235,0.45) !important; opacity:1 !important; }}
 </style>""", unsafe_allow_html=True)
