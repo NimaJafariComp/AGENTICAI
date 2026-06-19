@@ -10,13 +10,14 @@ Validated now:
 
 - local FastAPI backend starts successfully
 - local Streamlit UI starts successfully
-- test suite passes: `21 passed`
+- test suite passes: `26 passed`
 - deterministic policy engine is the only authority for refund outcomes
 - protected terminal actions require backend-minted `decision_id` values
 - direct `MockProvider` mode works
 - admin traces now include latency, token usage, and estimated cost fields
 - one intentional retry/failure path is visible in admin logs for the retry demo order
 - intake flow now explicitly collects full name, email, order ID, item, and issue before evaluation
+- local voice-to-text capture is available in the customer chat with transcript review before send
 - challenge demo paths exist for:
   - approve
   - deny
@@ -40,6 +41,7 @@ Included:
 - simple refund agent loop with tool orchestration
 - API routes for chat, policy, lookups, and admin trace reads
 - Streamlit customer chat, admin dashboard, and policy viewer
+- local ONNX speech-to-text endpoint for WAV voice notes
 - demo walkthrough guide and helper make targets
 
 Not in scope:
@@ -84,6 +86,11 @@ OLLAMA_MODE=local
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1:8b
 BACKEND_BASE_URL=http://localhost:8000
+STT_PROVIDER=onnx_asr
+STT_MODEL=nemo-parakeet-tdt-0.6b-v3
+STT_LANGUAGE=en
+STT_MAX_DURATION_SECONDS=20
+STT_ENABLED=true
 ```
 
 To force mock mode:
@@ -97,6 +104,12 @@ Recommended demo mode:
 ```bash
 LLM_PROVIDER=mock make dev
 ```
+
+Voice-to-text notes:
+
+- uses local `onnx-asr` transcription by default
+- first transcription may take longer while the model downloads and loads
+- v1 accepts short WAV microphone recordings and lets the user edit the transcript before sending
 
 ## Quick start
 
@@ -153,11 +166,12 @@ Included:
 Fastest walkthrough path:
 
 1. Open Customer chat.
-2. Run `Approved refund`.
-3. Run `Denied: final sale`.
-4. Run `Escalate + retry: amount over $500`.
-5. Run `Prompt injection attempt`.
-6. Open Admin dashboard and inspect traces.
+2. Optionally record a short voice note and transcribe it.
+3. Run `Approved refund`.
+4. Run `Denied: final sale`.
+5. Run `Escalate + retry: amount over $500`.
+6. Run `Prompt injection attempt`.
+7. Open Admin dashboard and inspect traces, including `voice_input_received` and `speech_to_text_result`.
 
 Challenge satisfaction summary:
 

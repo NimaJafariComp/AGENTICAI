@@ -7,3 +7,5 @@ pytest==9.1.1
 pytest-asyncio==1.4.0
 python-dotenv==1.2.1
 PyYAML==6.0.3
+python-multipart==0.0.32
+onnx-asr[cpu,hub]==0.11.0

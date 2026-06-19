@@ -281,6 +281,18 @@ class ChatMessageRequest(BaseModel):
     message: str = Field(min_length=1)
 
 
+class TranscriptionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    transcript: str
+    provider: str
+    model_name: str
+    language: str | None = None
+    latency_ms: int = Field(ge=0)
+    duration_ms: int | None = Field(default=None, ge=0)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class TraceResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

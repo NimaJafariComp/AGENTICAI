@@ -59,10 +59,23 @@ def api_post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return response.json()
 
 
+def api_post_file(
+    path: str,
+    *,
+    files: dict[str, tuple[str, bytes, str]],
+) -> dict[str, Any]:
+    with httpx.Client(timeout=60.0) as client:
+        response = client.post(f"{BACKEND_BASE_URL}{path}", files=files)
+        response.raise_for_status()
+        return response.json()
+
+
 def ensure_session_state() -> None:
     st.session_state.setdefault("chat_session_id", None)
     st.session_state.setdefault("chat_messages", [])
     st.session_state.setdefault("selected_demo", "Approved refund")
+    st.session_state.setdefault("voice_draft", "")
+    st.session_state.setdefault("voice_transcription", None)
 
 
 def ensure_chat_session(customer_email: str | None = None) -> str:
@@ -83,6 +96,13 @@ def safe_api_get(path: str):
 def safe_api_post(path: str, payload: dict[str, Any]):
     try:
         return api_post(path, payload), None
+    except Exception as exc:  # noqa: BLE001
+        return None, str(exc)
+
+
+def safe_api_post_file(path: str, *, files: dict[str, tuple[str, bytes, str]]):
+    try:
+        return api_post_file(path, files=files), None
     except Exception as exc:  # noqa: BLE001
         return None, str(exc)
 
@@ -336,6 +356,44 @@ def render_chat_tab() -> None:
     if st.session_state.chat_session_id:
         st.caption(f"Session: `{st.session_state.chat_session_id}`")
 
+    st.markdown("##### Voice note")
+    st.caption("Record a short WAV voice request, transcribe locally, then review before sending.")
+    voice_note = st.audio_input("Record a voice request", key="voice_note")
+
+    voice_cols = st.columns([1, 1, 2])
+    with voice_cols[0]:
+        if st.button("Transcribe voice", use_container_width=True):
+            if voice_note is None:
+                st.warning("Record a voice note first.")
+            else:
+                transcribe_voice_note(voice_note)
+    with voice_cols[1]:
+        if st.button("Clear voice draft", use_container_width=True):
+            st.session_state.voice_draft = ""
+            st.session_state.voice_transcription = None
+            st.rerun()
+    with voice_cols[2]:
+        transcription = st.session_state.voice_transcription
+        if transcription:
+            st.caption(
+                f"Local STT: {transcription['model_name']} · "
+                f"{transcription['latency_ms']} ms · "
+                f"{format_duration(transcription.get('duration_ms'))}"
+            )
+
+    st.session_state.voice_draft = st.text_area(
+        "Transcript draft",
+        value=st.session_state.voice_draft,
+        height=120,
+        placeholder="Voice transcript appears here. You can edit it before sending.",
+    )
+    if st.button("Send transcript", use_container_width=True, disabled=not st.session_state.voice_draft.strip()):
+        draft_message = st.session_state.voice_draft.strip()
+        st.session_state.chat_messages.append({"role": "user", "content": draft_message})
+        st.session_state.voice_draft = ""
+        st.session_state.voice_transcription = None
+        send_chat_message(draft_message)
+
     for message in st.session_state.chat_messages:
         css_class = "chat-bubble-user" if message["role"] == "user" else "chat-bubble-agent"
         st.markdown(
@@ -364,6 +422,24 @@ def send_chat_message(message: str) -> None:
         if decision_type:
             assistant_message += f"\n\nDecision: {decision_type}"
         st.session_state.chat_messages.append({"role": "assistant", "content": assistant_message})
+    st.rerun()
+
+
+def transcribe_voice_note(voice_note) -> None:
+    session_id = ensure_chat_session()
+    files = {
+        "audio": (
+            getattr(voice_note, "name", "voice-note.wav"),
+            voice_note.getvalue(),
+            getattr(voice_note, "type", "audio/wav"),
+        )
+    }
+    result, error = safe_api_post_file(f"/api/chat/{session_id}/transcriptions", files=files)
+    if error:
+        st.error(f"Transcription failed: {error}")
+        return
+    st.session_state.voice_draft = result.get("transcript", "")
+    st.session_state.voice_transcription = result
     st.rerun()
 
 
@@ -557,6 +633,12 @@ def format_cost(value: float | None) -> str:
     if value is None:
         return "n/a"
     return f"${value:.4f}"
+
+
+def format_duration(value: int | None) -> str:
+    if value is None:
+        return "duration n/a"
+    return f"{value} ms"
 
 
 def main() -> None:

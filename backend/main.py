@@ -1,7 +1,7 @@
 import json
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 
 from backend.agent import RefundAgent
 from backend.data_store import DataStore
@@ -15,7 +15,9 @@ from backend.schemas import (
     SessionDetailResponse,
     ToolCallResponse,
     TraceResponse,
+    TranscriptionResponse,
 )
+from backend.transcription import TranscriptionError, TranscriptionService
 from backend.tools import RefundTools
 from backend.trace import TraceService
 
@@ -26,6 +28,7 @@ trace_service = TraceService(data_store)
 llm_client = LLMClient.from_env(trace_service=trace_service)
 refund_tools = RefundTools(data_store, PolicyEngine(), trace_service)
 refund_agent = RefundAgent(llm_client, refund_tools, trace_service)
+transcription_service = TranscriptionService()
 
 
 @app.on_event("startup")
@@ -61,6 +64,87 @@ def post_chat_message(session_id: str, payload: ChatMessageRequest):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return result.model_dump()
+
+
+@app.post("/api/chat/{session_id}/transcriptions", response_model=TranscriptionResponse)
+async def create_transcription(
+    session_id: str,
+    audio: UploadFile = File(...),
+) -> TranscriptionResponse:
+    try:
+        data_store.get_session(session_id)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    audio_bytes = await audio.read()
+    trace_service.log_event(
+        trace_id=f"trace-{uuid4()}",
+        session_id=session_id,
+        event_type="voice_input_received",
+        payload={
+            "filename": audio.filename or "voice-note.wav",
+            "content_type": audio.content_type,
+            "size_bytes": len(audio_bytes),
+        },
+    )
+    trace_service.log_event(
+        trace_id=f"trace-{uuid4()}",
+        session_id=session_id,
+        event_type="speech_to_text_started",
+        payload={
+            "provider": transcription_service.provider,
+            "model_name": transcription_service.model_name,
+            "language": transcription_service.language,
+        },
+    )
+
+    try:
+        result = transcription_service.transcribe_bytes(
+            audio_bytes=audio_bytes,
+            filename=audio.filename or "voice-note.wav",
+            content_type=audio.content_type,
+        )
+    except TranscriptionError as exc:
+        trace_service.log_event(
+            trace_id=f"trace-{uuid4()}",
+            session_id=session_id,
+            event_type="speech_to_text_failed",
+            payload={
+                "provider": transcription_service.provider,
+                "model_name": transcription_service.model_name,
+                "filename": audio.filename or "voice-note.wav",
+                "content_type": audio.content_type,
+                "error": str(exc),
+            },
+        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    trace_service.log_event(
+        trace_id=f"trace-{uuid4()}",
+        session_id=session_id,
+        event_type="speech_to_text_result",
+        payload={
+            "provider": result.provider,
+            "model_name": result.model_name,
+            "language": result.language,
+            "filename": audio.filename or "voice-note.wav",
+            "content_type": audio.content_type,
+            "size_bytes": len(audio_bytes),
+            "transcript": result.transcript,
+            "duration_ms": result.duration_ms,
+            "warnings": result.warnings,
+        },
+        latency_ms=result.latency_ms,
+    )
+    return TranscriptionResponse(
+        transcript=result.transcript,
+        provider=result.provider,
+        model_name=result.model_name,
+        language=result.language,
+        latency_ms=result.latency_ms,
+        duration_ms=result.duration_ms,
+        warnings=result.warnings,
+    )
 
 
 @app.get("/api/chat/{session_id}", response_model=SessionDetailResponse)
