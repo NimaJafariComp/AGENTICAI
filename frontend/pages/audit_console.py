@@ -117,7 +117,7 @@ def _render_detail(detail: dict[str, Any]) -> None:
     with tc_tab:
         _render_tool_calls(tool_calls)
     with raw_tab:
-        st.json(detail, expanded=False)
+        st.json(detail, expanded=True)
 
 
 def _render_timeline(traces: list[dict[str, Any]]) -> None:
