@@ -1,0 +1,124 @@
+{
+  "customers": [
+    {
+      "id": "CUST-001",
+      "name": "Ava Johnson",
+      "email": "ava.johnson@example.com",
+      "risk_score": 12,
+      "lifetime_value": 842.31,
+      "notes": "Frequent apparel buyer. Low risk."
+    },
+    {
+      "id": "CUST-002",
+      "name": "Noah Martinez",
+      "email": "noah.martinez@example.com",
+      "risk_score": 18,
+      "lifetime_value": 412.19,
+      "notes": "Two successful prior orders."
+    },
+    {
+      "id": "CUST-003",
+      "name": "Mia Chen",
+      "email": "mia.chen@example.com",
+      "risk_score": 8,
+      "lifetime_value": 1298.55,
+      "notes": "VIP customer. Often buys gifts."
+    },
+    {
+      "id": "CUST-004",
+      "name": "Liam Patel",
+      "email": "liam.patel@example.com",
+      "risk_score": 22,
+      "lifetime_value": 655.48,
+      "notes": "Normal activity. No disputes."
+    },
+    {
+      "id": "CUST-005",
+      "name": "Sophia Nguyen",
+      "email": "sophia.nguyen@example.com",
+      "risk_score": 15,
+      "lifetime_value": 233.11,
+      "notes": "Single-address household account."
+    },
+    {
+      "id": "CUST-006",
+      "name": "Ethan Brooks",
+      "email": "ethan.brooks@example.com",
+      "risk_score": 31,
+      "lifetime_value": 1945.02,
+      "notes": "Occasional high-ticket electronics purchases."
+    },
+    {
+      "id": "CUST-007",
+      "name": "Isabella Garcia",
+      "email": "isabella.garcia@example.com",
+      "risk_score": 10,
+      "lifetime_value": 519.77,
+      "notes": "Low-friction customer."
+    },
+    {
+      "id": "CUST-008",
+      "name": "James Wilson",
+      "email": "james.wilson@example.com",
+      "risk_score": 44,
+      "lifetime_value": 302.44,
+      "notes": "One prior complaint about shipping delay."
+    },
+    {
+      "id": "CUST-009",
+      "name": "Charlotte Davis",
+      "email": "charlotte.davis@example.com",
+      "risk_score": 14,
+      "lifetime_value": 711.93,
+      "notes": "Repeat home goods buyer."
+    },
+    {
+      "id": "CUST-010",
+      "name": "Benjamin Taylor",
+      "email": "benjamin.taylor@example.com",
+      "risk_score": 27,
+      "lifetime_value": 884.26,
+      "notes": "Mixed-category purchases."
+    },
+    {
+      "id": "CUST-011",
+      "name": "Amelia Hernandez",
+      "email": "amelia.hernandez@example.com",
+      "risk_score": 9,
+      "lifetime_value": 147.2,
+      "notes": "New customer with one recent order."
+    },
+    {
+      "id": "CUST-012",
+      "name": "Lucas Anderson",
+      "email": "lucas.anderson@example.com",
+      "risk_score": 57,
+      "lifetime_value": 1266.8,
+      "notes": "Multiple address changes flagged for review."
+    },
+    {
+      "id": "CUST-013",
+      "name": "Harper Thomas",
+      "email": "harper.thomas@example.com",
+      "risk_score": 11,
+      "lifetime_value": 968.42,
+      "notes": "Often buys seasonal items."
+    },
+    {
+      "id": "CUST-014",
+      "name": "Henry Moore",
+      "email": "henry.moore@example.com",
+      "risk_score": 38,
+      "lifetime_value": 582.14,
+      "notes": "Prior return approved without issue."
+    },
+    {
+      "id": "CUST-015",
+      "name": "Evelyn Jackson",
+      "email": "evelyn.jackson@example.com",
+      "risk_score": 63,
+      "lifetime_value": 2199.34,
+      "notes": "High spend but inconsistent claim history requires care."
+    }
+  ]
+}

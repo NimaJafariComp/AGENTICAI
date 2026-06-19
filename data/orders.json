@@ -1,0 +1,346 @@
+{
+  "orders": [
+    {
+      "id": "ORD-1001",
+      "customer_id": "CUST-001",
+      "order_date": "2026-06-05",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 89.0,
+      "items": [
+        {
+          "item_id": "ITEM-1001-A",
+          "sku": "APP-HOOD-001",
+          "name": "Everyday Hoodie",
+          "category": "apparel",
+          "price": 89.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-08"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1002",
+      "customer_id": "CUST-002",
+      "order_date": "2026-06-10",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 74.0,
+      "items": [
+        {
+          "item_id": "ITEM-1002-A",
+          "sku": "APP-TEE-900",
+          "name": "Limited Drop Graphic Tee",
+          "category": "apparel",
+          "price": 74.0,
+          "final_sale": true,
+          "delivered_at": "2026-06-13"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1003",
+      "customer_id": "CUST-003",
+      "order_date": "2026-03-28",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 46.0,
+      "items": [
+        {
+          "item_id": "ITEM-1003-A",
+          "sku": "HOME-MUG-011",
+          "name": "Stoneware Mug Set",
+          "category": "home",
+          "price": 46.0,
+          "final_sale": false,
+          "delivered_at": "2026-04-02"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1004",
+      "customer_id": "CUST-006",
+      "order_date": "2026-06-02",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 649.0,
+      "items": [
+        {
+          "item_id": "ITEM-1004-A",
+          "sku": "TECH-AUD-650",
+          "name": "Studio Noise-Canceling Headphones",
+          "category": "electronics",
+          "price": 649.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-07"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1005",
+      "customer_id": "CUST-015",
+      "order_date": "2026-05-30",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 132.0,
+      "items": [
+        {
+          "item_id": "ITEM-1005-A",
+          "sku": "HOME-LAMP-204",
+          "name": "Arc Desk Lamp",
+          "category": "home",
+          "price": 132.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-04"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1006",
+      "customer_id": "CUST-004",
+      "order_date": "2026-05-11",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 118.0,
+      "items": [
+        {
+          "item_id": "ITEM-1006-A",
+          "sku": "APP-JOG-118",
+          "name": "Travel Joggers",
+          "category": "apparel",
+          "price": 118.0,
+          "final_sale": false,
+          "delivered_at": "2026-05-15"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1007",
+      "customer_id": "CUST-005",
+      "order_date": "2026-06-12",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 159.0,
+      "items": [
+        {
+          "item_id": "ITEM-1007-A",
+          "sku": "HOME-BLND-159",
+          "name": "Smart Blackout Blinds",
+          "category": "home",
+          "price": 159.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-16"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1008",
+      "customer_id": "CUST-007",
+      "order_date": "2026-04-20",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 96.0,
+      "items": [
+        {
+          "item_id": "ITEM-1008-A",
+          "sku": "BEAUTY-SKIN-096",
+          "name": "Night Repair Serum",
+          "category": "beauty",
+          "price": 96.0,
+          "final_sale": false,
+          "delivered_at": "2026-04-25"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1009",
+      "customer_id": "CUST-008",
+      "order_date": "2026-06-03",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 211.0,
+      "items": [
+        {
+          "item_id": "ITEM-1009-A",
+          "sku": "TECH-KB-211",
+          "name": "Mechanical Keyboard",
+          "category": "electronics",
+          "price": 211.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-09"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1010",
+      "customer_id": "CUST-009",
+      "order_date": "2026-06-14",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 68.0,
+      "items": [
+        {
+          "item_id": "ITEM-1010-A",
+          "sku": "HOME-THRW-068",
+          "name": "Woven Throw Blanket",
+          "category": "home",
+          "price": 68.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-18"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1011",
+      "customer_id": "CUST-010",
+      "order_date": "2026-05-19",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 540.0,
+      "items": [
+        {
+          "item_id": "ITEM-1011-A",
+          "sku": "TECH-MON-540",
+          "name": "27-inch Portable Monitor",
+          "category": "electronics",
+          "price": 540.0,
+          "final_sale": false,
+          "delivered_at": "2026-05-25"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1012",
+      "customer_id": "CUST-011",
+      "order_date": "2026-06-15",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 52.0,
+      "items": [
+        {
+          "item_id": "ITEM-1012-A",
+          "sku": "ACC-CASE-052",
+          "name": "Tablet Sleeve",
+          "category": "accessories",
+          "price": 52.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-18"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1013",
+      "customer_id": "CUST-012",
+      "order_date": "2026-06-01",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 122.0,
+      "items": [
+        {
+          "item_id": "ITEM-1013-A",
+          "sku": "APP-SHOE-122",
+          "name": "Runner Knit Sneakers",
+          "category": "footwear",
+          "price": 122.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-05"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1014",
+      "customer_id": "CUST-013",
+      "order_date": "2026-05-25",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 39.0,
+      "items": [
+        {
+          "item_id": "ITEM-1014-A",
+          "sku": "HOME-CNDL-039",
+          "name": "Cedar Candle",
+          "category": "home",
+          "price": 39.0,
+          "final_sale": false,
+          "delivered_at": "2026-05-29"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1015",
+      "customer_id": "CUST-014",
+      "order_date": "2026-02-14",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 199.0,
+      "items": [
+        {
+          "item_id": "ITEM-1015-A",
+          "sku": "TECH-SPKR-199",
+          "name": "Bluetooth Speaker",
+          "category": "electronics",
+          "price": 199.0,
+          "final_sale": false,
+          "delivered_at": "2026-02-20"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1016",
+      "customer_id": "CUST-001",
+      "order_date": "2026-01-11",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 128.0,
+      "items": [
+        {
+          "item_id": "ITEM-1016-A",
+          "sku": "APP-COAT-128",
+          "name": "Lightweight Rain Jacket",
+          "category": "apparel",
+          "price": 128.0,
+          "final_sale": false,
+          "delivered_at": "2026-01-16"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1017",
+      "customer_id": "CUST-003",
+      "order_date": "2026-06-07",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 24.0,
+      "items": [
+        {
+          "item_id": "ITEM-1017-A",
+          "sku": "GIFT-BAG-024",
+          "name": "Gift Wrap Bundle",
+          "category": "gift",
+          "price": 24.0,
+          "final_sale": true,
+          "delivered_at": "2026-06-09"
+        }
+      ]
+    },
+    {
+      "id": "ORD-1018",
+      "customer_id": "CUST-015",
+      "order_date": "2026-06-08",
+      "shipping_country": "US",
+      "payment_status": "paid",
+      "total": 610.0,
+      "items": [
+        {
+          "item_id": "ITEM-1018-A",
+          "sku": "TECH-CAM-610",
+          "name": "Compact Travel Camera",
+          "category": "electronics",
+          "price": 610.0,
+          "final_sale": false,
+          "delivered_at": "2026-06-12"
+        }
+      ]
+    }
+  ]
+}
