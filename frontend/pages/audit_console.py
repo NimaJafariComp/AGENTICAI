@@ -1,6 +1,7 @@
 """Audit Console — sessions listed newest-first, each expandable for full trace."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import streamlit as st
@@ -16,6 +17,16 @@ from frontend.shared import (
     fetch_session_detail,
     fetch_sessions,
 )
+
+_OUTCOME_ICON = {"APPROVE": "✓", "DENY": "✕", "ESCALATE": "⚠"}
+_OUTCOME_LABEL = {"APPROVE": "APPROVED", "DENY": "DENIED", "ESCALATE": "ESCALATED"}
+
+
+def _short_ts(iso: str) -> str:
+    try:
+        return datetime.fromisoformat(iso).strftime("%b %d  %H:%M")
+    except (ValueError, TypeError):
+        return ""
 
 
 def main() -> None:
@@ -40,27 +51,18 @@ def main() -> None:
     for sess in reversed(sessions):
         sid   = sess["session_id"]
         email = sess.get("customer_email") or "no email"
+        ts    = _short_ts(sess.get("created_at", ""))
 
         detail, _ = fetch_session_detail(sid)
         decs      = (detail or {}).get("final_decisions", [])
-        dt        = decs[-1]["decision_type"] if decs else ""
-        cls       = dt.lower() if dt else ""
-        chip      = f' <span class="chip chip-{cls}">{dt}</span>' if dt else ""
+        outcome   = decs[-1]["decision_type"] if decs else ""
+        icon      = _OUTCOME_ICON.get(outcome, "·")
+        label_txt = _OUTCOME_LABEL.get(outcome, "PENDING")
+        ts_part   = f"  ·  {ts}" if ts else ""
 
-        tool_calls = (detail or {}).get("tool_calls", [])
-        traces     = (detail or {}).get("traces", [])
-        tc_count   = len(tool_calls)
-        lat        = sum((t.get("latency_ms") or 0) for t in traces)
-        failed     = sum(1 for c in tool_calls if c["status"] == "failed")
-        fail_tag   = f" · **{failed} failed**" if failed else ""
+        row_label = f"{icon}  {label_txt}  ·  {email}  ·  #{sid[-8:]}{ts_part}"
 
-        label = (
-            f"`{sid[-12:]}` · {email}{chip}  "
-            f"<span style='font-size:0.78rem;color:var(--faint)'>"
-            f"{tc_count} tools · {lat} ms{fail_tag}</span>"
-        )
-
-        with st.expander(f"{sid[-12:]}  {email}  {dt}", expanded=False):
+        with st.expander(row_label, expanded=False):
             if detail:
                 _render_detail(detail)
             else:
