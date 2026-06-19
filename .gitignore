@@ -26,3 +26,4 @@ node_modules/
 streamlit.log
 *.log
 .dev/
+.dev
