@@ -5,10 +5,10 @@ No open/close HTML div tricks. Each st.markdown call is self-contained.
 from __future__ import annotations
 
 import queue as _queue
+from urllib.parse import quote as _urlquote
 from typing import Any
 
 import streamlit as st
-import streamlit.components.v1 as _components
 
 from frontend.shared import (
     DECISION_COPY,
@@ -70,6 +70,8 @@ _SPEECH_JS = """
 })();
 </script>
 """
+
+_SPEECH_IFRAME_SRC = f"data:text/html;charset=utf-8,{_urlquote(_SPEECH_JS)}"
 
 
 # ── Page entry ────────────────────────────────────────────────────────────────
@@ -205,7 +207,7 @@ def render_composer() -> None:
 
     # Live speech recognition — invisible iframe, updates textarea via React synthetic events
     if voice_state == "recording":
-        _components.html(_SPEECH_JS, height=1)
+        st.iframe(_SPEECH_IFRAME_SRC, height=1, scrolling=False)
 
     # Status line above textarea (non-idle only)
     if voice_state == "recording":
