@@ -5,11 +5,9 @@ No open/close HTML div tricks. Each st.markdown call is self-contained.
 from __future__ import annotations
 
 import queue as _queue
-from pathlib import Path
 from typing import Any
 
 import streamlit as st
-import streamlit.components.v1 as _components
 
 from frontend.shared import (
     DECISION_COPY,
@@ -31,10 +29,127 @@ _VOICE_PLACEHOLDER: dict[str, str] = {
     "ready":     "Transcript ready — edit or send",
 }
 
-# Declared component gets allow="microphone" on its iframe automatically
-_SPEECH_COMPONENT_DIR = Path(__file__).resolve().parent.parent / "components" / "speech"
-_speech_input = _components.declare_component("speech_input", path=str(_SPEECH_COMPONENT_DIR))
+_LIVE_DICTATION_SCRIPT = """
+<script>
+(function () {
+  const active = __ACTIVE__;
+  const token = "__TOKEN__";
+  const state = window.__refundLiveDictation || {
+    active: false,
+    finalText: "",
+    recognition: null,
+    shouldRun: false,
+    token: null
+  };
+  window.__refundLiveDictation = state;
 
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function findComposer() {
+    const doc = (window.parent && window.parent.document) ? window.parent.document : document;
+    const textareas = Array.from(doc.querySelectorAll('textarea'));
+    return textareas.find((ta) => !ta.disabled) || textareas[0] || null;
+  }
+
+  function waitForComposer(cb, attempts) {
+    const ta = findComposer();
+    if (ta) { cb(ta); return; }
+    if ((attempts || 0) > 20) return;
+    setTimeout(() => waitForComposer(cb, (attempts || 0) + 1), 100);
+  }
+
+  function setComposerValue(text) {
+    waitForComposer((textarea) => {
+      const win = (window.parent && window.parent.HTMLTextAreaElement) ? window.parent : window;
+      const descriptor = Object.getOwnPropertyDescriptor(
+        win.HTMLTextAreaElement.prototype,
+        "value"
+      );
+      descriptor.set.call(textarea, text);
+      textarea.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertText",
+        data: text
+      }));
+      textarea.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  function ensureRecognition() {
+    if (state.recognition) return state.recognition;
+    if (!SpeechRecognition) {
+      console.warn("Web Speech API is not supported in this browser.");
+      return null;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) state.finalText += result[0].transcript + " ";
+        else interim += result[0].transcript;
+      }
+      setComposerValue(state.finalText + interim);
+    };
+
+    recognition.onend = () => {
+      state.active = false;
+      if (state.shouldRun) startRecognition();
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error !== "no-speech") {
+        console.error("Speech recognition error:", event.error);
+      }
+    };
+
+    state.recognition = recognition;
+    return recognition;
+  }
+
+  function startRecognition() {
+    if (state.active) return;
+    const recognition = ensureRecognition();
+    if (!recognition) return;
+
+    try {
+      recognition.start();
+      state.active = true;
+    } catch (error) {
+      if (!error || error.name !== "InvalidStateError") {
+        console.error("Could not start speech recognition:", error);
+      }
+    }
+  }
+
+  function stopRecognition() {
+    state.shouldRun = false;
+    if (!state.recognition) return;
+    try {
+      state.recognition.stop();
+    } catch (_) {}
+    state.active = false;
+  }
+
+  if (active) {
+    if (state.token !== token) {
+      state.token = token;
+      state.finalText = "";
+      setComposerValue("");
+    }
+    state.shouldRun = true;
+    startRecognition();
+  } else {
+    stopRecognition();
+  }
+})();
+</script>
+"""
 
 # ── Page entry ────────────────────────────────────────────────────────────────
 
@@ -43,7 +158,8 @@ def main() -> None:
     with left:
         _render_left_panel()
     with center:
-        _render_conversation()
+        with st.container(height=520, border=False):
+            _render_conversation()
         render_composer()
     with right:
         if st.session_state.get(SK.PROCESSING):
@@ -55,6 +171,13 @@ def main() -> None:
 # ── Left panel ────────────────────────────────────────────────────────────────
 
 def _render_left_panel() -> None:
+    has_session = bool(st.session_state.get(SK.CHAT_MESSAGES))
+    if has_session:
+        if st.button("＋ New session", key="new_session_btn", use_container_width=True):
+            reset_session()
+            st.rerun()
+        st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
+
     st.markdown('<p class="panel-label">Test scenarios</p>', unsafe_allow_html=True)
 
     for scenario in DEMO_SCENARIOS:
@@ -93,14 +216,23 @@ def _render_session_list() -> None:
         email    = sess.get("customer_email") or "—"
         short_id = sid[-10:]
         detail, _ = fetch_session_detail(sid)
-        decision  = ""
-        chip_html = ""
-        if detail:
-            decs = detail.get("final_decisions", [])
-            if decs:
-                dt        = decs[-1]["decision_type"]
-                chip_html = f'<span class="chip chip-{dt.lower()}">{dt}</span>'
-                decision  = dt
+
+        decs       = (detail or {}).get("final_decisions", [])
+        tool_calls = (detail or {}).get("tool_calls", [])
+        traces     = (detail or {}).get("traces", [])
+
+        if decs:
+            dt       = decs[-1]["decision_type"]
+            chip_cls = dt.lower()
+            chip_lbl = dt
+        elif any(c["status"] == "failed" for c in tool_calls):
+            chip_cls, chip_lbl = "errored", "ERRORED"
+        elif tool_calls or traces:
+            chip_cls, chip_lbl = "incomplete", "INCOMPLETE"
+        else:
+            chip_cls, chip_lbl = "no-activity", "NO ACTIVITY"
+
+        chip_html = f'<span class="chip chip-{chip_cls}">{chip_lbl}</span>'
 
         # Two-row card: ID + chip on top, email below
         st.markdown(
@@ -125,14 +257,16 @@ def _run_scenario(scenario: dict[str, str]) -> None:
 # ── Center: conversation ──────────────────────────────────────────────────────
 
 def _render_conversation() -> None:
+    # Anchor used by CSS :has() to target only this container for bottom-alignment
+    st.markdown('<span id="_chat_top" style="display:none"></span>', unsafe_allow_html=True)
+
     messages = st.session_state.get(SK.CHAT_MESSAGES, [])
 
     if not messages:
         st.markdown(
-            '<div class="empty-state">'
-            '<p class="es-title">Refund Support Console</p>'
-            '<p>Pick a test scenario on the left, or describe a refund request below.</p>'
-            '</div>',
+            '<p style="font-size:0.82rem;color:var(--muted);margin:0.25rem 0">'
+            'Pick a test scenario on the left, or describe a refund request below.'
+            '</p>',
             unsafe_allow_html=True,
         )
         return
@@ -143,6 +277,9 @@ def _render_conversation() -> None:
     if st.session_state.get(SK.PROCESSING):
         with st.chat_message("assistant"):
             st.markdown("⋯")
+
+    # Anchor at the bottom so the container scrolls to newest message
+    st.markdown('<div id="chat-bottom"></div>', unsafe_allow_html=True)
 
 
 def _render_message(msg: dict[str, Any]) -> None:
@@ -169,27 +306,11 @@ def render_composer() -> None:
 
     st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
 
-    # Keep the speech component mounted so Streamlit doesn't add/remove layout space.
-    result = _speech_input(
-        active=voice_state == "recording",
-        default={"text": "", "final_text": ""},
-        key="speech_comp",
-        height=0,
-    )
-    if result and result.get("error"):
-        st.session_state[SK.VOICE_STATE] = "idle"
-        voice_state = "idle"
-        st.warning(f"Voice input unavailable: {result['error']}")
-    elif voice_state == "recording" and result and result.get("text") is not None:
-        transcript = result["text"]
-        st.session_state[SK.CHAT_DRAFT] = transcript
-        st.session_state[composer_key] = transcript
-
     # Reserve a stable status slot so the textarea doesn't jump when voice state changes.
     status_markup = (
         '<span style="color:var(--muted)">Voice or type your request below</span>'
         if voice_state == "idle"
-        else '<span style="color:var(--deny)">● Recording — tap ⏹ to stop</span>'
+        else '<span style="color:var(--deny)">● Listening — live transcript appears below</span>'
         if voice_state == "recording"
         else '<span style="color:var(--approve)">✓ Transcript ready — edit or send</span>'
     )
@@ -207,9 +328,16 @@ def render_composer() -> None:
         label_visibility="collapsed",
         key=composer_key,
     )
-    # Don't overwrite draft during recording (JS is writing to it)
+    # Live dictation writes into the textarea in-browser while recording.
     if voice_state != "recording":
         st.session_state[SK.CHAT_DRAFT] = draft
+
+    st.html(
+        _LIVE_DICTATION_SCRIPT
+        .replace("__ACTIVE__", "true" if voice_state == "recording" else "false")
+        .replace("__TOKEN__", str(composer_nonce)),
+        unsafe_allow_javascript=True,
+    )
 
     c_actions, c_cancel, c_send = st.columns([0.85, 1.1, 4.9], gap="small")
 
@@ -222,9 +350,8 @@ def render_composer() -> None:
                 st.rerun()
         elif voice_state == "recording":
             if st.button("⏹", key="stop_rec"):
-                # Capture whatever JS wrote to the textarea widget before rerun
                 captured = st.session_state.get(composer_key, "").strip()
-                st.session_state[SK.CHAT_DRAFT]  = captured
+                st.session_state[SK.CHAT_DRAFT] = captured
                 st.session_state[SK.VOICE_STATE] = "ready" if captured else "idle"
                 st.rerun()
         elif voice_state == "ready":
@@ -260,6 +387,7 @@ def render_composer() -> None:
 
 
 # ── Send dispatch ─────────────────────────────────────────────────────────────
+
 
 def _kick_send(message: str) -> None:
     session_id = ensure_chat_session()

@@ -70,6 +70,25 @@ class LLMClient:
         )
         return cls(selection, trace_service=trace_service)
 
+    def _try_reconnect(self) -> None:
+        """If we fell back to mock, re-probe the originally requested provider."""
+        if not self.selection.fallback_used:
+            return
+        if self.selection.requested_provider != "ollama":
+            return
+        candidate = OllamaProvider(
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+            model=os.getenv("OLLAMA_MODEL", "llama3.1:8b"),
+            mode=os.getenv("OLLAMA_MODE", "local"),
+        )
+        if candidate.is_available():
+            self.selection = ProviderSelection(
+                provider=candidate,
+                requested_provider="ollama",
+                fallback_used=False,
+            )
+            self._fallback_logged_sessions.clear()
+
     def chat(
         self,
         *,
@@ -77,6 +96,7 @@ class LLMClient:
         session_id: str | None = None,
         system_prompt: str | None = None,
     ) -> ProviderResponse:
+        self._try_reconnect()
         if session_id and self.selection.fallback_used and session_id not in self._fallback_logged_sessions:
             self._log_fallback(session_id)
             self._fallback_logged_sessions.add(session_id)
@@ -86,6 +106,7 @@ class LLMClient:
         return response.model_copy(update={"latency_ms": latency_ms})
 
     def provider_info(self) -> dict[str, object]:
+        self._try_reconnect()
         return {
             "requested_provider": self.selection.requested_provider,
             "active_provider": self.selection.provider.provider_name,

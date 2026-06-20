@@ -319,9 +319,14 @@ _STRUCTURAL = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 html, body, [class*="css"] { font-family:"Inter",system-ui,sans-serif !important; }
-[data-testid="stHeader"] { display:none !important; }
+[data-testid="stHeader"] { height:0 !important; min-height:0 !important; padding:0 !important; overflow:visible !important; background:transparent !important; }
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+[data-testid="stAppDeployButton"],
+[data-testid="stMainMenuButton"] { display:none !important; }
+[data-testid="stExpandSidebarButton"] { display:flex !important; visibility:visible !important; position:fixed !important; top:0.4rem !important; left:0.4rem !important; z-index:999999 !important; }
 .block-container {
-  padding-top:1.2rem !important; padding-left:1.2rem !important;
+  padding-top:2.6rem !important; padding-left:1.2rem !important;
   padding-right:1.2rem !important; max-width:100% !important;
 }
 [data-testid="stSidebar"] > div { padding:1rem !important; }
@@ -354,6 +359,13 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 
 [data-testid="stChatMessage"]        { padding:0.05rem 0 !important; }
 [data-testid="stChatMessageContent"] { font-size:0.93rem; line-height:1.6; }
+/* Fixed-height chat container: scroll to bottom anchor on new messages */
+[data-testid="stVerticalBlockBorderWrapper"] { scroll-behavior:smooth; }
+#chat-bottom { height:1px; }
+/* Push chat messages to bottom so short conversations look like iMessage */
+[data-testid="stVerticalBlockBorderWrapper"]:has(#_chat_top) [data-testid="stVerticalBlock"] {
+  min-height:100% !important; display:flex !important; flex-direction:column !important; justify-content:flex-end !important;
+}
 
 .seal { display:inline-flex; align-items:center; gap:0.35rem; margin-top:0.45rem; padding:0.2rem 0.5rem; border-radius:5px; border-width:1.5px; border-style:solid; font-family:"JetBrains Mono",monospace; font-size:0.67rem; font-weight:500; letter-spacing:0.07em; text-transform:uppercase; }
 .seal::before { content:""; width:6px; height:6px; border-radius:2px; }
@@ -435,10 +447,13 @@ def _inject_dark() -> None:
 .session-card {{ border-bottom:1px solid rgba(230,237,243,0.08) !important; }}
 .s-id   {{ color:#484f58 !important; }}
 .s-email {{ color:#e6edf3 !important; }}
-.chip-approve  {{ background:rgba(63,185,80,0.10)  !important; color:#3fb950 !important; }}
-.chip-deny     {{ background:rgba(248,81,73,0.10)  !important; color:#f85149 !important; }}
-.chip-escalate {{ background:rgba(227,179,65,0.10) !important; color:#e3b341 !important; }}
-.chip-brand    {{ background:rgba(68,147,248,0.10) !important; color:#4493f8 !important; }}
+.chip-approve      {{ background:rgba(63,185,80,0.10)  !important; color:#3fb950 !important; }}
+.chip-deny         {{ background:rgba(248,81,73,0.10)  !important; color:#f85149 !important; }}
+.chip-escalate     {{ background:rgba(227,179,65,0.10) !important; color:#e3b341 !important; }}
+.chip-brand        {{ background:rgba(68,147,248,0.10) !important; color:#4493f8 !important; }}
+.chip-errored      {{ background:rgba(248,81,73,0.07)  !important; color:#f85149 !important; }}
+.chip-incomplete   {{ background:rgba(227,179,65,0.07) !important; color:#e3b341 !important; }}
+.chip-no-activity  {{ background:rgba(72,79,88,0.20)   !important; color:#8b949e !important; }}
 .seal {{ border-color:#484f58; color:#8b949e; }}
 .seal::before {{ background:#484f58; }}
 .seal.approve  {{ border-color:#3fb950; color:#3fb950; }}
@@ -542,10 +557,13 @@ def _inject_light() -> None:
 .session-card {{ border-bottom:1px solid rgba(17,24,39,0.08) !important; }}
 .s-id   {{ color:#6b7280 !important; }}
 .s-email {{ color:#111827 !important; }}
-.chip-approve  {{ background:rgba(5,150,105,0.07)  !important; color:#059669 !important; }}
-.chip-deny     {{ background:rgba(220,38,38,0.07)  !important; color:#dc2626 !important; }}
-.chip-escalate {{ background:rgba(217,119,6,0.07)  !important; color:#d97706 !important; }}
-.chip-brand    {{ background:rgba(37,99,235,0.07)  !important; color:#2563eb !important; }}
+.chip-approve      {{ background:rgba(5,150,105,0.07)   !important; color:#059669 !important; }}
+.chip-deny         {{ background:rgba(220,38,38,0.07)   !important; color:#dc2626 !important; }}
+.chip-escalate     {{ background:rgba(217,119,6,0.07)   !important; color:#d97706 !important; }}
+.chip-brand        {{ background:rgba(37,99,235,0.07)   !important; color:#2563eb !important; }}
+.chip-errored      {{ background:rgba(220,38,38,0.06)   !important; color:#dc2626 !important; }}
+.chip-incomplete   {{ background:rgba(217,119,6,0.06)   !important; color:#d97706 !important; }}
+.chip-no-activity  {{ background:rgba(107,114,128,0.10) !important; color:#6b7280 !important; }}
 .seal {{ border-color:#6b7280; color:#6b7280; }}
 .seal::before {{ background:#6b7280; }}
 .seal.approve  {{ border-color:#059669; color:#059669; }}
@@ -632,7 +650,14 @@ pre code {{ background:transparent !important; color:inherit !important; border-
 [data-testid="stJson"] span[style] {{ background:transparent !important; border:0 !important; box-shadow:none !important; padding:0 !important; border-radius:0 !important; }}
 [data-testid="stJson"] .cm-atom, [data-testid="stJson"] .cm-bool, [data-testid="stJson"] .cm-null {{ color:#2563eb !important; background:transparent !important; border-radius:0 !important; }}
 [data-testid="stTabs"] [data-baseweb="tab-panel"] {{ background:#f3f4f6 !important; }}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{ background:#e5e7eb !important; border-radius:12px !important; }}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{ background:transparent !important; }}
+[data-testid="stChatMessageContent"] p {{ color:#111827 !important; }}
 [data-testid="stBaseButton-primary"]:disabled {{ background:rgba(37,99,235,0.12) !important; border-color:transparent !important; color:rgba(37,99,235,0.45) !important; opacity:1 !important; }}
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stExpandSidebarButton"] {{ background:#ffffff !important; border:1px solid rgba(17,24,39,0.18) !important; border-radius:6px !important; box-shadow:0 1px 4px rgba(0,0,0,0.08) !important; }}
+[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"],
+[data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"] {{ color:#1f2937 !important; opacity:1 !important; }}
 </style>""", unsafe_allow_html=True)
 
 
