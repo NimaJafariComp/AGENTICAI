@@ -345,7 +345,7 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 .status-row   { display:flex !important; align-items:center !important; gap:0.5rem; font-size:0.8rem; }
 .status-k { font-family:"JetBrains Mono",monospace !important; font-size:0.62rem !important; text-transform:uppercase !important; letter-spacing:0.06em; width:4.5rem; flex-shrink:0; }
 
-.panel-label { font-family:"JetBrains Mono",monospace; font-size:0.62rem; letter-spacing:0.09em; text-transform:uppercase; margin:0.1rem 0 0.45rem; }
+.panel-label { font-family:"JetBrains Mono",monospace; font-size:0.66rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; margin:0.1rem 0 0.55rem; }
 
 .scenario-meta { display:flex !important; align-items:center !important; gap:0.5rem; margin-top:-0.35rem; margin-bottom:0.55rem; flex-wrap:wrap; }
 .scenario-why  { font-size:0.74rem; line-height:1.4; flex:1; }
@@ -359,13 +359,90 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 
 [data-testid="stChatMessage"]        { padding:0.05rem 0 !important; }
 [data-testid="stChatMessageContent"] { font-size:0.93rem; line-height:1.6; }
+
+/* ── Main 3-column layout: vertical dividers between the rails ── */
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) { gap:0 !important; }
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"] { padding:0 1.5rem !important; }
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"]:first-child { padding-left:0.25rem !important; }
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"]:last-child  { padding-right:0.25rem !important; }
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"] + [data-testid="stColumn"] { border-left:1px solid var(--border); }
+/* Right column reads as a clean full-height inspector (matches card surface) */
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"]:last-child {
+  background:var(--surface) !important; border-radius:0 !important; padding:0.25rem 1.5rem 1.5rem !important;
+}
+
+/* ── Center "command console": header → body card → composer card ── */
+/* Fill the row height so the body grows and the composer pins to the bottom. */
+[data-testid="stColumn"]:has(#_center_marker) { display:flex !important; flex-direction:column !important; }
+[data-testid="stColumn"]:has(#_center_marker) > [data-testid="stVerticalBlock"] { flex:1 1 auto !important; display:flex !important; flex-direction:column !important; }
+[data-testid="stColumn"]:has(#_center_marker) > [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"]:has(#_chat_top) {
+  flex:1 1 auto !important; height:auto !important; min-height:0 !important; overflow-y:auto !important;
+}
+.console-header { display:flex; flex-direction:column; gap:0.1rem; padding:0.1rem 0.2rem 0.7rem; }
+.console-title { font-size:0.98rem; font-weight:600; color:var(--ink); }
+.console-sub   { font-size:0.78rem; color:var(--muted); }
+
 /* Fixed-height chat container: scroll to bottom anchor on new messages */
 [data-testid="stVerticalBlockBorderWrapper"] { scroll-behavior:smooth; }
 #chat-bottom { height:1px; }
+/* Conversation surface card (results / transcript area) */
+[data-testid="stVerticalBlockBorderWrapper"]:has(#_chat_top) {
+  border:1px solid var(--border) !important; border-radius:12px !important;
+  background:var(--surface) !important; padding:0.4rem 0.95rem !important;
+}
 /* Push chat messages to bottom so short conversations look like iMessage */
 [data-testid="stVerticalBlockBorderWrapper"]:has(#_chat_top) [data-testid="stVerticalBlock"] {
   min-height:100% !important; display:flex !important; flex-direction:column !important; justify-content:flex-end !important;
 }
+
+/* Composer card anchored under the results area */
+._composer { display:none; }
+[data-testid="stMarkdown"]:has(._composer) { display:none !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(._composer) {
+  border:1px solid var(--border) !important; border-radius:12px !important;
+  background:var(--surface) !important; padding:0.7rem 0.85rem 0.6rem !important;
+  margin-top:0.6rem !important; margin-bottom:1.75rem !important; flex:0 0 auto !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(._composer) [data-testid="stTextArea"] textarea {
+  background:var(--surface-2) !important;
+}
+
+/* Centered empty state inside the conversation card */
+.chat-empty { display:flex; flex:1 1 auto; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:0.5rem; min-height:260px; width:100%; }
+.chat-empty-icon  { font-size:1.9rem; opacity:0.5; }
+.chat-empty-title { font-size:0.98rem; font-weight:600; margin:0; color:var(--ink); }
+.chat-empty-sub   { font-size:0.83rem; margin:0; color:var(--muted); max-width:22rem; line-height:1.5; }
+
+/* ── Unified scenario cards (button + meta in one bordered surface) ── */
+._scenario-card { display:none; }
+/* Tighten the gap the left column puts between its stacked elements */
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlock"] { gap:0.45rem !important; }
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid="stVerticalBlock"] { gap:0 !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) {
+  border:1px solid var(--border) !important; border-radius:10px !important;
+  background:var(--surface) !important; padding:0 !important;
+  transition:border-color 0.12s ease, background 0.12s ease;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card):hover { border-color:var(--border-strong) !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) > div { padding:0 !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid="stElementContainer"] { margin:0 !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .stButton button {
+  border:0 !important; background:transparent !important; text-align:left !important;
+  justify-content:flex-start !important; padding:0.4rem 0.65rem 0.05rem !important;
+  font-weight:600 !important; min-height:0 !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .stButton button:hover { background:transparent !important; filter:none !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .scenario-meta { margin:0 !important; padding:0 0.65rem 0.4rem !important; }
+[data-testid="stMarkdown"]:has(._scenario-card) { display:none !important; }
+
+/* ── Right inspector empty state with skeleton sections ── */
+.inspector-empty { padding:0.2rem 0 0.4rem; }
+.inspector-empty-title { font-size:0.92rem; font-weight:600; color:var(--ink); margin:0 0 0.15rem; }
+.inspector-empty-sub   { font-size:0.8rem; color:var(--muted); margin:0 0 0.75rem; }
+.inspector-skeleton { display:flex; flex-direction:column; gap:0.5rem; }
+.skeleton-row { display:flex; align-items:center; gap:0.55rem; font-size:0.82rem; color:var(--muted);
+  padding:0.5rem 0.65rem; border:1px dashed var(--border); border-radius:8px; }
+.skeleton-dot { width:7px; height:7px; border-radius:50%; background:var(--faint); flex-shrink:0; }
 
 .seal { display:inline-flex; align-items:center; gap:0.35rem; margin-top:0.45rem; padding:0.2rem 0.5rem; border-radius:5px; border-width:1.5px; border-style:solid; font-family:"JetBrains Mono",monospace; font-size:0.67rem; font-weight:500; letter-spacing:0.07em; text-transform:uppercase; }
 .seal::before { content:""; width:6px; height:6px; border-radius:2px; }
@@ -433,6 +510,7 @@ def _inject_dark() -> None:
   --bg:#0d1117; --surface:#161b22; --surface-2:#21262d;
   --ink:#e6edf3; --muted:#8b949e; --faint:#484f58;
   --brand:#4493f8; --approve:#3fb950; --deny:#f85149; --escalate:#e3b341;
+  --border:rgba(230,237,243,0.09); --border-strong:rgba(230,237,243,0.15);
 }}
 .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{ background:#0d1117 !important; color:#e6edf3 !important; }}
 [data-testid="stSidebar"] {{ background:#161b22 !important; }}
@@ -543,6 +621,7 @@ def _inject_light() -> None:
   --bg:#f3f4f6; --surface:#ffffff; --surface-2:#f9fafb;
   --ink:#111827; --muted:#6b7280; --faint:#6b7280;
   --brand:#2563eb; --approve:#059669; --deny:#dc2626; --escalate:#d97706;
+  --border:rgba(17,24,39,0.18); --border-strong:rgba(17,24,39,0.30);
 }}
 .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{ background:#f3f4f6 !important; color:#111827 !important; }}
 [data-testid="stSidebar"] {{ background:#ffffff !important; }}

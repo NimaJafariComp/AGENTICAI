@@ -162,9 +162,20 @@ _LIVE_DICTATION_SCRIPT = """
 def main() -> None:
     left, center, right = st.columns([1.15, 2.75, 1.1], gap="large")
     with left:
+        # Marker scopes the column-divider CSS to this top-level layout only.
+        st.markdown('<span id="_desk_marker" style="display:none"></span>', unsafe_allow_html=True)
         _render_left_panel()
     with center:
-        with st.container(height=520, border=False):
+        # Marker lets CSS make this column fill the row height and pin the composer.
+        st.markdown('<span id="_center_marker" style="display:none"></span>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="console-header">'
+            '<span class="console-title">Refund Decision Console</span>'
+            '<span class="console-sub">Run a scenario or describe a request — the decision appears here</span>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        with st.container(height=300, border=False):
             _render_conversation()
         render_composer()
     with right:
@@ -190,21 +201,22 @@ def _render_left_panel() -> None:
         exp     = scenario["expected"]
         exp_cls = exp.lower()
 
-        if st.button(
-            scenario["label"],
-            key=f"s_{scenario['key']}",
-            use_container_width=True,
-        ):
-            _run_scenario(scenario)
-
-        # Single self-contained markdown — why text + chip
-        st.markdown(
-            f'<div class="scenario-meta">'
-            f'<span class="scenario-why">{scenario["why"]}</span>'
-            f'<span class="chip chip-{exp_cls}">{exp}</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+        with st.container(border=True):
+            # Marker scopes the unified-card styling to scenario containers only.
+            st.markdown('<span class="_scenario-card"></span>', unsafe_allow_html=True)
+            if st.button(
+                scenario["label"],
+                key=f"s_{scenario['key']}",
+                use_container_width=True,
+            ):
+                _run_scenario(scenario)
+            st.markdown(
+                f'<div class="scenario-meta">'
+                f'<span class="scenario-why">{scenario["why"]}</span>'
+                f'<span class="chip chip-{exp_cls}">{exp}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
     st.markdown('<hr style="margin:0.8rem 0;border-color:var(--border)">', unsafe_allow_html=True)
     st.markdown('<p class="panel-label">Recent sessions</p>', unsafe_allow_html=True)
@@ -270,9 +282,12 @@ def _render_conversation() -> None:
 
     if not messages:
         st.markdown(
-            '<p style="font-size:0.82rem;color:var(--muted);margin:0.25rem 0">'
-            'Pick a test scenario on the left, or describe a refund request below.'
-            '</p>',
+            '<div class="chat-empty">'
+            '<div class="chat-empty-icon">💬</div>'
+            '<p class="chat-empty-title">No conversation yet</p>'
+            '<p class="chat-empty-sub">Pick a test scenario on the left, '
+            'or describe a refund request in the box below.</p>'
+            '</div>',
             unsafe_allow_html=True,
         )
         return
@@ -310,86 +325,89 @@ def render_composer() -> None:
     composer_nonce = st.session_state.setdefault("composer_draft_nonce", 0)
     composer_key = f"composer_draft_{composer_nonce}"
 
-    st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        # Marker turns this container into the bottom composer card (CSS :has).
+        st.markdown('<span class="_composer" style="display:none"></span>', unsafe_allow_html=True)
 
-    # Reserve a stable status slot so the textarea doesn't jump when voice state changes.
-    status_markup = (
-        '<span style="color:var(--muted)">Voice or type your request below</span>'
-        if voice_state == "idle"
-        else '<span style="color:var(--deny)">● Listening — live transcript appears below</span>'
-        if voice_state == "recording"
-        else '<span style="color:var(--approve)">✓ Transcript ready — edit or send</span>'
-    )
-    st.markdown(
-        f'<div style="min-height:1.25rem;margin:0 0 0.25rem;font-size:0.78rem">{status_markup}</div>',
-        unsafe_allow_html=True,
-    )
+        # Reserve a stable status slot so the textarea doesn't jump when voice state changes.
+        status_markup = (
+            '<span style="color:var(--muted)">Voice or type your request below</span>'
+            if voice_state == "idle"
+            else '<span style="color:var(--deny)">● Listening — live transcript appears below</span>'
+            if voice_state == "recording"
+            else '<span style="color:var(--approve)">✓ Transcript ready — edit or send</span>'
+        )
+        st.markdown(
+            f'<div style="min-height:1.1rem;margin:0 0 0.3rem;font-size:0.76rem">{status_markup}</div>',
+            unsafe_allow_html=True,
+        )
 
-    draft = st.text_area(
-        "Message",
-        value=st.session_state.get(SK.CHAT_DRAFT, ""),
-        placeholder=_VOICE_PLACEHOLDER.get(voice_state, "Describe the refund request…"),
-        height=72,
-        disabled=processing,
-        label_visibility="collapsed",
-        key=composer_key,
-    )
-    # Live dictation writes into the textarea in-browser while recording.
-    if voice_state != "recording":
-        st.session_state[SK.CHAT_DRAFT] = draft
+        draft = st.text_area(
+            "Message",
+            value=st.session_state.get(SK.CHAT_DRAFT, ""),
+            placeholder=_VOICE_PLACEHOLDER.get(voice_state, "Describe the refund request…"),
+            height=72,
+            disabled=processing,
+            label_visibility="collapsed",
+            key=composer_key,
+        )
+        # Live dictation writes into the textarea in-browser while recording.
+        if voice_state != "recording":
+            st.session_state[SK.CHAT_DRAFT] = draft
 
-    st.html(
-        _LIVE_DICTATION_SCRIPT
-        .replace("__ACTIVE__", "true" if voice_state == "recording" else "false")
-        .replace("__TOKEN__", str(composer_nonce)),
-        unsafe_allow_javascript=True,
-    )
+        st.html(
+            _LIVE_DICTATION_SCRIPT
+            .replace("__ACTIVE__", "true" if voice_state == "recording" else "false")
+            .replace("__TOKEN__", str(composer_nonce)),
+            unsafe_allow_javascript=True,
+        )
 
-    c_actions, c_cancel, c_send = st.columns([0.85, 1.1, 4.9], gap="small")
+        c_actions, c_cancel, c_spacer, c_send = st.columns([0.8, 1.1, 3.1, 1.6], gap="small")
+        c_spacer.empty()
 
-    with c_actions:
-        if voice_state == "idle" and not processing:
-            if st.button("🎙", key="mic_btn"):
+        with c_actions:
+            if voice_state == "idle" and not processing:
+                if st.button("🎙", key="mic_btn"):
+                    st.session_state[SK.CHAT_DRAFT]  = ""
+                    st.session_state["composer_draft_nonce"] += 1
+                    st.session_state[SK.VOICE_STATE] = "recording"
+                    st.rerun()
+            elif voice_state == "recording":
+                if st.button("⏹", key="stop_rec"):
+                    captured = st.session_state.get(composer_key, "").strip()
+                    st.session_state[SK.CHAT_DRAFT] = captured
+                    st.session_state[SK.VOICE_STATE] = "ready" if captured else "idle"
+                    st.rerun()
+            elif voice_state == "ready":
+                if st.button("🔁", key="rerecord_btn"):
+                    st.session_state[SK.CHAT_DRAFT]  = ""
+                    st.session_state["composer_draft_nonce"] += 1
+                    st.session_state[SK.VOICE_STATE] = "recording"
+                    st.rerun()
+
+        with c_cancel:
+            if voice_state in ("recording", "ready"):
+                if st.button("Cancel", key="cancel_rec", use_container_width=True):
+                    st.session_state[SK.CHAT_DRAFT] = ""
+                    st.session_state["composer_draft_nonce"] += 1
+                    st.session_state[SK.VOICE_STATE] = "idle"
+                    st.rerun()
+            else:
+                st.markdown('<div style="height:2.5rem"></div>', unsafe_allow_html=True)
+
+        with c_send:
+            current_draft = draft if voice_state != "recording" else st.session_state.get(SK.CHAT_DRAFT, "")
+            disabled = voice_state == "recording" or processing
+            if st.button("Send →", type="primary", disabled=disabled,
+                         key="send_btn", use_container_width=True):
+                msg = current_draft.strip()
+                if not msg:
+                    return
                 st.session_state[SK.CHAT_DRAFT]  = ""
-                st.session_state["composer_draft_nonce"] += 1
-                st.session_state[SK.VOICE_STATE] = "recording"
-                st.rerun()
-        elif voice_state == "recording":
-            if st.button("⏹", key="stop_rec"):
-                captured = st.session_state.get(composer_key, "").strip()
-                st.session_state[SK.CHAT_DRAFT] = captured
-                st.session_state[SK.VOICE_STATE] = "ready" if captured else "idle"
-                st.rerun()
-        elif voice_state == "ready":
-            if st.button("🔁", key="rerecord_btn"):
-                st.session_state[SK.CHAT_DRAFT]  = ""
-                st.session_state["composer_draft_nonce"] += 1
-                st.session_state[SK.VOICE_STATE] = "recording"
-                st.rerun()
-
-    with c_cancel:
-        if voice_state in ("recording", "ready"):
-            if st.button("Cancel", key="cancel_rec", use_container_width=True):
-                st.session_state[SK.CHAT_DRAFT] = ""
                 st.session_state["composer_draft_nonce"] += 1
                 st.session_state[SK.VOICE_STATE] = "idle"
-                st.rerun()
-        else:
-            st.markdown('<div style="height:2.5rem"></div>', unsafe_allow_html=True)
-
-    with c_send:
-        current_draft = draft if voice_state != "recording" else st.session_state.get(SK.CHAT_DRAFT, "")
-        disabled = voice_state == "recording" or processing
-        if st.button("Send →", type="primary", disabled=disabled,
-                     key="send_btn", use_container_width=True):
-            msg = current_draft.strip()
-            if not msg:
-                return
-            st.session_state[SK.CHAT_DRAFT]  = ""
-            st.session_state["composer_draft_nonce"] += 1
-            st.session_state[SK.VOICE_STATE] = "idle"
-            st.session_state[SK.CHAT_MESSAGES].append({"role": "user", "content": msg})
-            _kick_send(msg)
+                st.session_state[SK.CHAT_MESSAGES].append({"role": "user", "content": msg})
+                _kick_send(msg)
 
 
 # ── Send dispatch ─────────────────────────────────────────────────────────────
@@ -451,7 +469,19 @@ def _render_intel_static() -> None:
     sid = st.session_state.get(SK.ACTIVE_SID) or st.session_state.get(SK.CHAT_SESSION_ID)
 
     if not sid:
-        st.caption("No active case. Run a scenario to see live case details.")
+        st.markdown(
+            '<div class="inspector-empty">'
+            '<p class="inspector-empty-title">No active case yet</p>'
+            '<p class="inspector-empty-sub">Run a scenario to populate:</p>'
+            '<div class="inspector-skeleton">'
+            '<div class="skeleton-row"><span class="skeleton-dot"></span>Eligibility checks</div>'
+            '<div class="skeleton-row"><span class="skeleton-dot"></span>Policy citations</div>'
+            '<div class="skeleton-row"><span class="skeleton-dot"></span>Risk flags</div>'
+            '<div class="skeleton-row"><span class="skeleton-dot"></span>Recommended action</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
         return
 
     intel = st.session_state.get(SK.CASE_INTEL)
