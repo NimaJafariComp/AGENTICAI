@@ -23,6 +23,9 @@ data/app.db
 plan.md
 node_modules/
 
+.claude/
+.codex/
+
 streamlit.log
 *.log
 .dev/
