@@ -34,53 +34,57 @@ _LIVE_DICTATION_SCRIPT = """
 (function () {
   const active = __ACTIVE__;
   const token = "__TOKEN__";
+  const doc = (window.parent && window.parent.document) ? window.parent.document : document;
+  const win = (window.parent && window.parent.HTMLTextAreaElement) ? window.parent : window;
+
   const state = window.__refundLiveDictation || {
-    active: false,
     finalText: "",
+    interim: "",
     recognition: null,
+    running: false,
     shouldRun: false,
+    syncTimer: null,
+    lastWritten: null,
     token: null
   };
   window.__refundLiveDictation = state;
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition
+    || window.SpeechRecognition || window.webkitSpeechRecognition;
 
   function findComposer() {
-    const doc = (window.parent && window.parent.document) ? window.parent.document : document;
     const textareas = Array.from(doc.querySelectorAll('textarea'));
     return textareas.find((ta) => !ta.disabled) || textareas[0] || null;
   }
 
-  function waitForComposer(cb, attempts) {
-    const ta = findComposer();
-    if (ta) { cb(ta); return; }
-    if ((attempts || 0) > 20) return;
-    setTimeout(() => waitForComposer(cb, (attempts || 0) + 1), 100);
+  function writeToComposer(text) {
+    const textarea = findComposer();
+    if (!textarea) return;
+    const descriptor = Object.getOwnPropertyDescriptor(
+      win.HTMLTextAreaElement.prototype, "value"
+    );
+    descriptor.set.call(textarea, text);
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+    state.lastWritten = text;
   }
 
-  function setComposerValue(text) {
-    waitForComposer((textarea) => {
-      const win = (window.parent && window.parent.HTMLTextAreaElement) ? window.parent : window;
-      const descriptor = Object.getOwnPropertyDescriptor(
-        win.HTMLTextAreaElement.prototype,
-        "value"
-      );
-      descriptor.set.call(textarea, text);
-      textarea.dispatchEvent(new InputEvent("input", {
-        bubbles: true,
-        inputType: "insertText",
-        data: text
-      }));
-      textarea.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+  // Continuously push the latest transcript into the textarea so React
+  // re-renders can't permanently clobber it.
+  function startSync() {
+    if (state.syncTimer) return;
+    state.syncTimer = setInterval(() => {
+      const text = (state.finalText + state.interim).trimStart();
+      if (text !== state.lastWritten) writeToComposer(text);
+    }, 120);
+  }
+
+  function stopSync() {
+    if (state.syncTimer) { clearInterval(state.syncTimer); state.syncTimer = null; }
   }
 
   function ensureRecognition() {
     if (state.recognition) return state.recognition;
-    if (!SpeechRecognition) {
-      console.warn("Web Speech API is not supported in this browser.");
-      return null;
-    }
+    if (!SpeechRecognition) { console.warn("[dictation] Web Speech API not supported"); return null; }
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -90,21 +94,21 @@ _LIVE_DICTATION_SCRIPT = """
     recognition.onresult = (event) => {
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) state.finalText += result[0].transcript + " ";
-        else interim += result[0].transcript;
+        const r = event.results[i];
+        if (r.isFinal) state.finalText += r[0].transcript + " ";
+        else interim += r[0].transcript;
       }
-      setComposerValue(state.finalText + interim);
+      state.interim = interim;
     };
 
     recognition.onend = () => {
-      state.active = false;
+      state.running = false;
       if (state.shouldRun) startRecognition();
     };
 
     recognition.onerror = (event) => {
-      if (event.error !== "no-speech") {
-        console.error("Speech recognition error:", event.error);
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        console.error("[dictation] recognition error:", event.error);
       }
     };
 
@@ -113,36 +117,38 @@ _LIVE_DICTATION_SCRIPT = """
   }
 
   function startRecognition() {
-    if (state.active) return;
+    if (state.running) return;
     const recognition = ensureRecognition();
     if (!recognition) return;
-
     try {
       recognition.start();
-      state.active = true;
+      state.running = true;
     } catch (error) {
       if (!error || error.name !== "InvalidStateError") {
-        console.error("Could not start speech recognition:", error);
+        console.error("[dictation] start failed:", error);
       }
     }
   }
 
   function stopRecognition() {
     state.shouldRun = false;
-    if (!state.recognition) return;
-    try {
-      state.recognition.stop();
-    } catch (_) {}
-    state.active = false;
+    stopSync();
+    if (state.recognition) {
+      try { state.recognition.stop(); } catch (_) {}
+    }
+    state.running = false;
   }
 
   if (active) {
     if (state.token !== token) {
       state.token = token;
       state.finalText = "";
-      setComposerValue("");
+      state.interim = "";
+      state.lastWritten = null;
+      writeToComposer("");
     }
     state.shouldRun = true;
+    startSync();
     startRecognition();
   } else {
     stopRecognition();
