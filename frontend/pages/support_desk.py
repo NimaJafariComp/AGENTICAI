@@ -175,7 +175,7 @@ def main() -> None:
             '</div>',
             unsafe_allow_html=True,
         )
-        with st.container(height=300, border=False):
+        with st.container(border=True):
             _render_conversation()
         render_composer()
     with right:

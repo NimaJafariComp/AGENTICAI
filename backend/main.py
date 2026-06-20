@@ -1,6 +1,8 @@
 import json
+from pathlib import Path
 from uuid import uuid4
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
 from backend.agent import RefundAgent
@@ -21,6 +23,8 @@ from backend.transcription import TranscriptionError, TranscriptionService
 from backend.tools import RefundTools
 from backend.trace import TraceService
 
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 app = FastAPI(title="AgenticAI Backend", version="0.1.0")
 data_store = DataStore()
