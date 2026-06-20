@@ -360,6 +360,20 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 [data-testid="stChatMessage"]        { padding:0.05rem 0 !important; }
 [data-testid="stChatMessageContent"] { font-size:0.93rem; line-height:1.6; }
 
+/* ── Fixed app-shell (Support Desk only): no page scroll, internal scroll only ── */
+[data-testid="stAppViewContainer"]:has(#_desk_marker),
+[data-testid="stMain"]:has(#_desk_marker) { height:100dvh !important; max-height:100dvh !important; overflow:hidden !important; }
+[data-testid="stMain"]:has(#_desk_marker) .block-container {
+  height:100dvh !important; max-height:100dvh !important; overflow:hidden !important;
+  display:flex !important; flex-direction:column !important; padding-bottom:0 !important;
+}
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) { flex:1 1 auto !important; min-height:0 !important; align-items:stretch !important; }
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"] { min-height:0 !important; height:100% !important; }
+/* Left rail scrolls internally; center & right stay fixed */
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"]:has(#_desk_marker)   { overflow-y:auto !important; overflow-x:hidden !important; }
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"]:has(#_center_marker) { overflow:hidden !important; }
+[data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"]:last-child           { overflow:hidden !important; }
+
 /* ── Main 3-column layout: vertical dividers between the rails ── */
 [data-testid="stHorizontalBlock"]:has(#_desk_marker) { gap:0 !important; }
 [data-testid="stHorizontalBlock"]:has(#_desk_marker) > [data-testid="stColumn"] { padding:0 1.5rem !important; }
