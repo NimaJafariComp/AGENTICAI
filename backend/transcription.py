@@ -5,9 +5,10 @@ import os
 import tempfile
 import time
 import wave
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 class TranscriptionError(RuntimeError):
@@ -110,7 +111,7 @@ class TranscriptionService:
 
         try:
             self._model = loader(self.model_name)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise TranscriptionError(f"Could not load STT model '{self.model_name}'.") from exc
         return self._model
 
@@ -121,7 +122,7 @@ class TranscriptionService:
                 handle.write(audio_bytes)
                 temp_path = Path(handle.name)
             result = model.recognize(str(temp_path))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise TranscriptionError("Local transcription failed.") from exc
         finally:
             if temp_path is not None and temp_path.exists():
@@ -158,5 +159,5 @@ class TranscriptionService:
                 if frame_rate <= 0:
                     return None
                 return round((frame_count / frame_rate) * 1000)
-        except wave.Error:
-            raise TranscriptionError("Voice note must be a valid WAV recording.")
+        except wave.Error as exc:
+            raise TranscriptionError("Voice note must be a valid WAV recording.") from exc

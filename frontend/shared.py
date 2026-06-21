@@ -163,13 +163,6 @@ def api_post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     return r.json()
 
 
-def api_post_file(path: str, *, files: dict[str, Any]) -> dict[str, Any]:
-    with httpx.Client(timeout=60.0) as client:
-        r = client.post(f"{BACKEND_BASE_URL}{path}", files=files)
-        r.raise_for_status()
-        return r.json()
-
-
 def _err(exc: Exception) -> str:
     if isinstance(exc, httpx.HTTPStatusError):
         try:
@@ -184,20 +177,6 @@ def _err(exc: Exception) -> str:
 def safe_get(path: str) -> tuple[Any, str | None]:
     try:
         return api_get(path), None
-    except Exception as e:  # noqa: BLE001
-        return None, _err(e)
-
-
-def safe_post(path: str, payload: dict[str, Any]) -> tuple[Any, str | None]:
-    try:
-        return api_post(path, payload), None
-    except Exception as e:  # noqa: BLE001
-        return None, _err(e)
-
-
-def safe_post_file(path: str, *, files: dict[str, Any]) -> tuple[Any, str | None]:
-    try:
-        return api_post_file(path, files=files), None
     except Exception as e:  # noqa: BLE001
         return None, _err(e)
 

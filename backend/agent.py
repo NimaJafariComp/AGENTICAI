@@ -13,7 +13,6 @@ from backend.schemas import AgentTurnResult, DecisionType, RefundRequest
 from backend.tools import RefundTools, ToolAuthorizationError
 from backend.trace import TraceService
 
-
 EMAIL_RE = re.compile(r"[\w.\-+]+@[\w.\-]+\.\w+")
 ORDER_RE = re.compile(r"\bORD-\d{4}\b", re.IGNORECASE)
 ITEM_RE = re.compile(r"\bITEM-\d{4}-[A-Z]\b", re.IGNORECASE)

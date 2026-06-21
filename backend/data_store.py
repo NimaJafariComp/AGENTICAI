@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -10,17 +10,17 @@ import yaml
 
 from backend.schemas import (
     AppSeedData,
-    Customer,
-    CustomerSeedData,
     CreateRuntimeFinalDecisionInput,
     CreateRuntimeSessionInput,
     CreateRuntimeToolCallInput,
     CreateRuntimeTraceInput,
+    Customer,
+    CustomerSeedData,
     DataSummary,
     Order,
     OrderSeedData,
-    RefundPolicyDocument,
     PolicyFrontMatter,
+    RefundPolicyDocument,
     RuntimeFinalDecision,
     RuntimeSession,
     RuntimeToolCall,
@@ -88,9 +88,6 @@ class DataStore:
         if order is None:
             return None
         return next((item for item in order.items if item.item_id == item_id), None)
-
-    def list_orders_for_customer(self, customer_id: str) -> list[Order]:
-        return [order for order in self.load_orders() if order.customer_id == customer_id]
 
     def summary(self) -> DataSummary:
         seed = self.load_seed_data()

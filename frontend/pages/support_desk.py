@@ -13,7 +13,6 @@ from frontend.shared import (
     DECISION_COPY,
     DEMO_SCENARIOS,
     SK,
-    TOOL_LABELS,
     ensure_chat_session,
     extract_case_intel,
     fetch_session_detail,
@@ -376,12 +375,11 @@ def render_composer() -> None:
                     st.session_state[SK.CHAT_DRAFT] = captured
                     st.session_state[SK.VOICE_STATE] = "ready" if captured else "idle"
                     st.rerun()
-            elif voice_state == "ready":
-                if st.button("🔁", key="rerecord_btn"):
-                    st.session_state[SK.CHAT_DRAFT]  = ""
-                    st.session_state["composer_draft_nonce"] += 1
-                    st.session_state[SK.VOICE_STATE] = "recording"
-                    st.rerun()
+            elif voice_state == "ready" and st.button("🔁", key="rerecord_btn"):
+                st.session_state[SK.CHAT_DRAFT]  = ""
+                st.session_state["composer_draft_nonce"] += 1
+                st.session_state[SK.VOICE_STATE] = "recording"
+                st.rerun()
 
         with c_cancel:
             if voice_state in ("recording", "ready"):

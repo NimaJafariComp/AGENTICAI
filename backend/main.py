@@ -1,4 +1,6 @@
 import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -19,14 +21,12 @@ from backend.schemas import (
     TraceResponse,
     TranscriptionResponse,
 )
-from backend.transcription import TranscriptionError, TranscriptionService
 from backend.tools import RefundTools
 from backend.trace import TraceService
-
+from backend.transcription import TranscriptionError, TranscriptionService
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-app = FastAPI(title="AgenticAI Backend", version="0.1.0")
 data_store = DataStore()
 trace_service = TraceService(data_store)
 llm_client = LLMClient.from_env(trace_service=trace_service)
@@ -35,9 +35,13 @@ refund_agent = RefundAgent(llm_client, refund_tools, trace_service)
 transcription_service = TranscriptionService()
 
 
-@app.on_event("startup")
-def startup() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     data_store.init_runtime_db()
+    yield
+
+
+app = FastAPI(title="AgenticAI Backend", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")

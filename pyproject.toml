@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E501 (line length) intentionally not selected: shared.py / support_desk.py
+# embed dense CSS and JS as string literals where wrapping hurts readability.
+select = ["F", "I", "B", "UP", "SIM", "C4", "PIE", "RUF", "BLE"]
+ignore = [
+    "B008",    # FastAPI dependency-injection idiom: `audio: UploadFile = File(...)`
+    "RUF001",  # intentional fullwidth/glyph chars in Streamlit UI button labels
+    "UP042",   # str+Enum kept over StrEnum: preserves JSON serialization behavior
+]

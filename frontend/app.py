@@ -9,6 +9,8 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
+from frontend.pages import audit_console, support_desk
+from frontend.pages import policy as policy_page
 from frontend.shared import (
     BACKEND_BASE_URL,
     SK,
@@ -16,7 +18,6 @@ from frontend.shared import (
     fetch_health,
     inject_styles,
 )
-from frontend.pages import audit_console, policy as policy_page, support_desk
 
 st.set_page_config(
     page_title="Refund Support Console",

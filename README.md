@@ -10,7 +10,7 @@ Validated now:
 
 - local FastAPI backend starts successfully
 - local Streamlit UI starts successfully
-- test suite passes: `26 passed`
+- test suite passes: `27 passed`
 - deterministic policy engine is the only authority for refund outcomes
 - protected terminal actions require backend-minted `decision_id` values
 - direct `MockProvider` mode works
@@ -67,8 +67,6 @@ backend/
 data/
 tests/
 ```
-
-See [plan.md](/Users/nimajafari/Programming/git_repos/AgenticAI/plan.md:1) for the full implementation plan.
 
 ## Environment
 
@@ -189,7 +187,7 @@ Challenge satisfaction summary:
 
 Detailed script:
 
-- see [DEMO.md](/Users/nimajafari/Programming/git_repos/AgenticAI/DEMO.md:1)
+- see [DEMO.md](DEMO.md)
 
 ## Troubleshooting
 

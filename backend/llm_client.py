@@ -30,7 +30,7 @@ class LLMClient:
         self._fallback_logged_sessions: set[str] = set()
 
     @classmethod
-    def from_env(cls, trace_service: TraceService | None = None) -> "LLMClient":
+    def from_env(cls, trace_service: TraceService | None = None) -> LLMClient:
         requested_provider = os.getenv("LLM_PROVIDER", "ollama").strip().lower() or "ollama"
 
         if requested_provider == "mock":

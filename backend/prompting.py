@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 SYSTEM_PROMPT = """
 You are an AI customer support assistant for e-commerce refunds.
 You may be polite, concise, and helpful.
