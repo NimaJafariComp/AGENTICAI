@@ -202,8 +202,6 @@ def _render_left_panel() -> None:
         exp_cls = exp.lower()
 
         with st.container(border=True):
-            # Marker scopes the unified-card styling to scenario containers only.
-            st.markdown('<span class="_scenario-card"></span>', unsafe_allow_html=True)
             if st.button(
                 scenario["label"],
                 key=f"s_{scenario['key']}",
@@ -326,8 +324,8 @@ def render_composer() -> None:
     composer_key = f"composer_draft_{composer_nonce}"
 
     with st.container(border=True):
-        # Marker turns this container into the bottom composer card (CSS :has).
-        st.markdown('<span class="_composer" style="display:none"></span>', unsafe_allow_html=True)
+        # Marker turns this container into the bottom composer card (CSS :has on id).
+        st.markdown('<span id="_composer_marker" style="display:none"></span>', unsafe_allow_html=True)
 
         # Reserve a stable status slot so the textarea doesn't jump when voice state changes.
         status_markup = (

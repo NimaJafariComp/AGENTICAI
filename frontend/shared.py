@@ -438,9 +438,7 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 }
 
 /* Composer card anchored under the results area */
-._composer { display:none; }
-[data-testid="stMarkdown"]:has(._composer) { display:none !important; }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._composer) {
+[data-testid="stVerticalBlockBorderWrapper"]:has(#_composer_marker) {
   border:1px solid var(--border-card) !important; border-radius:12px !important;
   background:var(--surface) !important; padding:0.7rem 0.85rem 0.6rem !important;
   margin-top:0.6rem !important; flex:0 0 auto !important;
@@ -453,32 +451,30 @@ section[data-testid="stSidebar"] > div { padding-top:0.75rem !important; }
 .chat-empty-sub   { font-size:0.83rem; margin:0; color:var(--muted); max-width:22rem; line-height:1.5; }
 
 /* ── Unified scenario cards (button + meta in one bordered surface) ── */
-._scenario-card { display:none; }
 /* Tighten the gap the left column puts between its stacked elements */
 [data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlock"] { gap:0.45rem !important; }
-[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid="stVerticalBlock"] { gap:0 !important; }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) {
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] { gap:0 !important; }
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] {
   border:1px solid var(--border-card) !important; border-radius:10px !important;
   background:var(--surface) !important; padding:0 !important;
   transition:border-color 0.12s ease, background 0.12s ease;
 }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card):hover { border-color:var(--border-strong) !important; }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) > div { padding:0 !important; }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid="stElementContainer"] { margin:0 !important; }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .stButton button,
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid^="stBaseButton"] {
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"]:hover { border-color:var(--border-strong) !important; }
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] > div { padding:0 !important; }
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stElementContainer"] { margin:0 !important; }
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] .stButton button,
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] [data-testid^="stBaseButton"] {
   border:0 !important; border-color:transparent !important; box-shadow:none !important;
   background:transparent !important; text-align:left !important;
   justify-content:flex-start !important; padding:0.4rem 0.65rem 0.05rem !important;
   font-weight:600 !important; min-height:0 !important;
 }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .stButton button:hover,
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid^="stBaseButton"]:hover {
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] .stButton button:hover,
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] [data-testid^="stBaseButton"]:hover {
   border:0 !important; border-color:transparent !important; box-shadow:none !important;
   background:transparent !important; filter:none !important;
 }
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .scenario-meta { margin:0 !important; padding:0 0.65rem 0.4rem !important; }
-[data-testid="stMarkdown"]:has(._scenario-card) { display:none !important; }
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] .scenario-meta { margin:0 !important; padding:0 0.65rem 0.4rem !important; }
 
 /* ── Right inspector empty state with skeleton sections ── */
 .inspector-empty { padding:0.2rem 0 0.4rem; }
@@ -632,15 +628,15 @@ def _inject_dark() -> None:
 .stButton button:hover, [data-testid="stBaseButton-secondary"]:hover {{ border-color:#4493f8 !important; color:#4493f8 !important; }}
 .stButton button:focus-visible, [data-testid^="stBaseButton"]:focus-visible {{ box-shadow:0 0 0 2px #4493f8 !important; }}
 [data-testid="stBaseButton-primary"], .stButton button[kind="primary"] {{ background:#4493f8 !important; border-color:#4493f8 !important; }}
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .stButton button,
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid^="stBaseButton"],
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) button[kind="secondary"] {{
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] .stButton button,
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] [data-testid^="stBaseButton"],
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] button[kind="secondary"] {{
   background:transparent !important; border:0 !important; border-color:transparent !important;
   box-shadow:none !important; outline:none !important;
 }}
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) .stButton button:hover,
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) [data-testid^="stBaseButton"]:hover,
-[data-testid="stVerticalBlockBorderWrapper"]:has(._scenario-card) button[kind="secondary"]:hover {{
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] .stButton button:hover,
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] [data-testid^="stBaseButton"]:hover,
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] button[kind="secondary"]:hover {{
   background:transparent !important; border:0 !important; border-color:transparent !important;
   box-shadow:none !important; outline:none !important; color:#e6edf3 !important;
 }}
@@ -667,6 +663,13 @@ pre code {{ background:transparent !important; color:inherit !important; border-
 [data-testid="stJson"] .cm-punctuation, [data-testid="stJson"] .cm-bracket {{ color:#8b949e !important; }}
 [data-testid="stJson"] .cm-atom, [data-testid="stJson"] .cm-bool, [data-testid="stJson"] .cm-null {{ color:#e3b341 !important; background:rgba(227,179,65,0.14) !important; border-radius:4px !important; }}
 [data-testid="stTabs"] [data-baseweb="tab-panel"] {{ background:#0d1117 !important; }}
+[data-testid="stChatMessageContent"],
+[data-testid="stChatMessageContent"] p,
+[data-testid="stChatMessageContent"] li,
+[data-testid="stChatMessageContent"] ul,
+[data-testid="stChatMessageContent"] ol,
+[data-testid="stChatMessageContent"] blockquote {{ color:#e6edf3 !important; }}
+[data-testid="stChatMessageContent"] li::marker {{ color:#8b949e !important; }}
 </style>""", unsafe_allow_html=True)
 
 
@@ -679,8 +682,8 @@ def _inject_light() -> None:
   --bg:#f3f4f6; --surface:#ffffff; --surface-2:#f9fafb;
   --ink:#111827; --muted:#6b7280; --faint:#6b7280;
   --brand:#2563eb; --approve:#059669; --deny:#dc2626; --escalate:#d97706;
-  --border:rgba(15,23,42,0.09); --border-strong:rgba(15,23,42,0.30);
-  --border-layout:rgba(15,23,42,0.20); --border-card:rgba(15,23,42,0.14); --border-input:rgba(15,23,42,0.24);
+  --border:rgba(148,163,184,0.36); --border-strong:rgba(100,116,139,0.62);
+  --border-layout:rgba(100,116,139,0.50); --border-card:rgba(100,116,139,0.44); --border-input:rgba(100,116,139,0.56);
 }}
 .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{ background:#f3f4f6 !important; color:#111827 !important; }}
 [data-testid="stSidebar"] {{ background:#ffffff !important; }}
@@ -692,6 +695,22 @@ def _inject_light() -> None:
 .warn {{ color:#d97706 !important; font-weight:600 !important; }}
 .panel-label {{ color:#6b7280; }}
 .scenario-why {{ color:#6b7280; }}
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] {{
+  border:1.5px solid #aeb6c2 !important; border-radius:10px !important;
+  background:#ffffff !important;
+}}
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"]:hover {{
+  border-color:#2563eb !important;
+}}
+/* Keep the scenario title button borderless so only the card outline shows */
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] .stButton button,
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] [data-testid^="stBaseButton"],
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] button[kind="secondary"] {{
+  background:transparent !important; border:0 !important; border-color:transparent !important; box-shadow:none !important;
+}}
+[data-testid="stColumn"]:has(#_desk_marker) [data-testid="stVerticalBlockBorderWrapper"] .stButton button:focus-visible {{
+  box-shadow:0 0 0 2px rgba(37,99,235,0.55) !important;
+}}
 .session-card {{ border-bottom:1px solid var(--border) !important; }}
 .s-id   {{ color:#6b7280 !important; }}
 .s-email {{ color:#111827 !important; }}
@@ -753,12 +772,18 @@ def _inject_light() -> None:
 .rule-val  {{ color:#111827 !important; }}
 .rule-note {{ color:#6b7280 !important; }}
 .stButton button, [data-testid="stBaseButton-secondary"] {{ background:#ffffff !important; color:#111827 !important; border-color:var(--border-input) !important; }}
-.stButton button:hover, [data-testid="stBaseButton-secondary"]:hover {{ border-color:#2563eb !important; color:#2563eb !important; }}
-.stButton button:focus-visible, [data-testid^="stBaseButton"]:focus-visible {{ box-shadow:0 0 0 2px #2563eb !important; }}
+.stButton button:hover, [data-testid="stBaseButton-secondary"]:hover {{ border-color:var(--border-strong) !important; color:#111827 !important; }}
+.stButton button:focus-visible, [data-testid^="stBaseButton"]:focus-visible {{ box-shadow:0 0 0 2px rgba(148,163,184,0.55) !important; }}
 [data-testid="stBaseButton-primary"], .stButton button[kind="primary"] {{ background:#2563eb !important; border-color:#2563eb !important; }}
 [data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input {{ background:#ffffff !important; color:#111827 !important; border-color:var(--border-input) !important; }}
 [data-testid="stTextArea"] textarea::placeholder {{ color:#6b7280 !important; }}
 [data-baseweb="select"] > div {{ background:#ffffff !important; color:#111827 !important; border-color:var(--border-input) !important; }}
+[data-testid="stTextArea"] textarea:focus,
+[data-testid="stTextInput"] input:focus,
+[data-baseweb="select"] > div:focus-within {{
+  border-color:var(--border-strong) !important;
+  box-shadow:0 0 0 2px rgba(148,163,184,0.35) !important;
+}}
 [data-testid="stTabs"] [data-baseweb="tab-list"] {{ background:#f3f4f6 !important; border-bottom:1px solid var(--border) !important; }}
 [data-testid="stTabs"] [data-baseweb="tab"] {{ color:#6b7280 !important; background:#f3f4f6 !important; }}
 [data-testid="stTabs"] [aria-selected="true"] {{ color:#111827 !important; }}
@@ -771,7 +796,7 @@ def _inject_light() -> None:
 [data-testid="stExpander"] details > summary:focus,
 [data-testid="stExpander"] details > summary:focus-visible {{ background:transparent !important; }}
 [data-testid="stExpander"] details {{ border:1px solid var(--border-card) !important; border-radius:8px !important; }}
-[data-testid="stExpander"] details > summary:focus-visible {{ outline:none !important; box-shadow:0 0 0 2px #2563eb !important; }}
+[data-testid="stExpander"] details > summary:focus-visible {{ outline:none !important; box-shadow:0 0 0 2px rgba(148,163,184,0.55) !important; }}
 [data-testid="stExpander"] summary {{ color:#111827 !important; }}
 [data-testid="stCaption"] p {{ color:#6b7280 !important; }}
 [data-testid="stSidebarNav"] a, [data-testid="stSidebarNav"] a:hover {{ color:#6b7280 !important; }}
@@ -790,7 +815,13 @@ pre code {{ background:transparent !important; color:inherit !important; border-
 [data-testid="stTabs"] [data-baseweb="tab-panel"] {{ background:#f3f4f6 !important; }}
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{ background:#e5e7eb !important; border-radius:12px !important; }}
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{ background:transparent !important; }}
-[data-testid="stChatMessageContent"] p {{ color:#111827 !important; }}
+[data-testid="stChatMessageContent"],
+[data-testid="stChatMessageContent"] p,
+[data-testid="stChatMessageContent"] li,
+[data-testid="stChatMessageContent"] ul,
+[data-testid="stChatMessageContent"] ol,
+[data-testid="stChatMessageContent"] blockquote {{ color:#111827 !important; }}
+[data-testid="stChatMessageContent"] li::marker {{ color:#6b7280 !important; }}
 [data-testid="stBaseButton-primary"]:disabled {{ background:rgba(37,99,235,0.12) !important; border-color:transparent !important; color:rgba(37,99,235,0.45) !important; opacity:1 !important; }}
 [data-testid="stSidebarCollapseButton"],
 [data-testid="stExpandSidebarButton"] {{ background:#ffffff !important; border:1px solid var(--border-layout) !important; border-radius:6px !important; box-shadow:0 1px 4px rgba(0,0,0,0.08) !important; }}
