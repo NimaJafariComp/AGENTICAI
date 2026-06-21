@@ -1,0 +1,4 @@
+# Development tooling (not needed at runtime).
+# Install: .venv/bin/pip install -r requirements-dev.txt
+-r requirements.txt
+ruff==0.15.18

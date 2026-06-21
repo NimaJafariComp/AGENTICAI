@@ -140,8 +140,15 @@ App starts:
 Useful helper commands:
 
 ```bash
-make check
+make lint   # ruff static checks
+make check  # ruff + test suite
 make stop
+```
+
+Linting and other dev tools are pinned separately:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ## Python compatibility

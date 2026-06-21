@@ -4,7 +4,7 @@
 VENV ?= .venv
 BIN := $(VENV)/bin
 
-.PHONY: dev stop check
+.PHONY: dev stop check lint
 
 dev:
 	@test -f backend/main.py || (echo "Missing backend/main.py. Build backend first."; exit 1)
@@ -19,5 +19,9 @@ stop:
 	@pkill -f "streamlit run frontend/app.py" >/dev/null 2>&1 || true
 	@echo "Stopped local backend/frontend if running."
 
-check:
+lint:
+	@test -x $(BIN)/ruff || (echo "Missing $(BIN)/ruff. Install dev deps: $(BIN)/pip install -r requirements-dev.txt"; exit 1)
+	@$(BIN)/ruff check .
+
+check: lint
 	@$(BIN)/pytest -q
