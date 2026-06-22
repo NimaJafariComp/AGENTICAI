@@ -7,9 +7,15 @@ from datetime import date
 from uuid import uuid4
 
 from backend.llm_client import LLMClient
-from backend.prompting import SYSTEM_PROMPT, build_decision_prompt, build_missing_info_prompt
+from backend.prompting import (
+    SYSTEM_PROMPT,
+    build_blocked_response_prompt,
+    build_decision_prompt,
+    build_missing_info_prompt,
+)
 from backend.providers.base import ProviderResponse
 from backend.schemas import AgentTurnResult, DecisionType, RefundRequest
+from backend.session_guard import SessionGuard
 from backend.tools import RefundTools, ToolAuthorizationError
 from backend.trace import TraceService
 
@@ -30,10 +36,12 @@ class RefundAgent:
         llm_client: LLMClient,
         refund_tools: RefundTools,
         trace_service: TraceService,
+        session_guard: SessionGuard | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.refund_tools = refund_tools
         self.trace_service = trace_service
+        self.session_guard = session_guard or SessionGuard(refund_tools.data_store)
 
     def process_user_message(
         self,
@@ -50,6 +58,47 @@ class RefundAgent:
             event_type="user_message",
             payload={"message": message},
         )
+
+        # ── Session decision guard ────────────────────────────────────────────
+        gate = self.session_guard.evaluate(session_id)
+        if not gate.allowed:
+            response = self.llm_client.chat(
+                session_id=session_id,
+                system_prompt=SYSTEM_PROMPT,
+                messages=[{
+                    "role": "user",
+                    "content": build_blocked_response_prompt(
+                        block_reason=gate.block_reason or "",
+                        decision_type=gate.decision_type or "",
+                        reason_codes=gate.reason_codes,
+                        denial_category=gate.denial_category.value if gate.denial_category else None,
+                    ),
+                }],
+            )
+            self._log_llm_response(session_id=session_id, response=response, response_kind="blocked")
+            total_latency_ms = self._elapsed_ms(turn_started_at)
+            self.trace_service.log_event(
+                trace_id=f"trace-{uuid4()}",
+                session_id=session_id,
+                event_type="turn_summary",
+                payload={
+                    "status": "blocked",
+                    "chip_status": gate.chip_status,
+                    "block_reason": gate.block_reason,
+                    "reason_codes": gate.reason_codes,
+                },
+                latency_ms=total_latency_ms,
+            )
+            return AgentTurnResult(
+                session_id=session_id,
+                status="blocked",
+                assistant_message=response.content,
+                decision_type=gate.decision_type,
+                latency_ms=total_latency_ms,
+                token_usage=response.token_usage or {},
+                estimated_cost_usd=response.estimated_cost_usd,
+            )
+        # ─────────────────────────────────────────────────────────────────────
 
         intake_state = self._collect_intake_state(session_id=session_id)
         self.trace_service.start_session(

@@ -1,5 +1,5 @@
 """
-Support Desk — three-column ops console.
+Support Desk: three-column ops console.
 No open/close HTML div tricks. Each st.markdown call is self-contained.
 """
 from __future__ import annotations
@@ -8,12 +8,14 @@ import queue as _queue
 from typing import Any
 
 import streamlit as st
+import streamlit.components.v1 as components
 
+from backend.demo_scenarios import DEMO_SCENARIOS, DemoScenario
 from frontend.shared import (
     DECISION_COPY,
-    DEMO_SCENARIOS,
     SK,
     ensure_chat_session,
+    ensure_state,
     extract_case_intel,
     fetch_session_detail,
     fetch_session_detail_live,
@@ -25,7 +27,7 @@ from frontend.shared import (
 _VOICE_PLACEHOLDER: dict[str, str] = {
     "idle":      "Describe the refund request…",
     "recording": "● Listening…",
-    "ready":     "Transcript ready — edit or send",
+    "ready":     "Transcript ready, edit or send",
 }
 
 _LIVE_DICTATION_SCRIPT = """
@@ -156,11 +158,56 @@ _LIVE_DICTATION_SCRIPT = """
 </script>
 """
 
+_ENTER_TO_SEND_SCRIPT = """
+<script>
+(function () {
+  const doc = (window.parent && window.parent.document) ? window.parent.document : document;
+  if (doc._refundEnterToSend) return;
+  doc._refundEnterToSend = true;
+  doc.addEventListener('keydown', function (e) {
+    if (e.target.tagName !== 'TEXTAREA') return;
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const card = e.target.closest('[class*="st-key-composer_card"]');
+    if (!card) return;
+    e.preventDefault();
+    const btn = card.querySelector('[data-testid="stBaseButton-primary"]')
+             || card.querySelector('button[kind="primary"]');
+    if (btn && !btn.disabled) btn.click();
+  }, true);
+})();
+</script>
+"""
+
+_CHAT_AUTOSCROLL_SCRIPT = """
+<div data-chat-scroll-token="__TOKEN__"></div>
+<script>
+(function () {
+  const doc = (window.parent && window.parent.document) ? window.parent.document : document;
+
+  function scrollChatToBottom() {
+    const chatCard = doc.querySelector('[class*="st-key-chat_card"]');
+    const bottom = doc.getElementById("chat-bottom");
+    if (!chatCard) return;
+
+    chatCard.scrollTop = chatCard.scrollHeight;
+    if (bottom) bottom.scrollIntoView({ block: "end", inline: "nearest" });
+  }
+
+  requestAnimationFrame(scrollChatToBottom);
+  setTimeout(scrollChatToBottom, 60);
+  setTimeout(scrollChatToBottom, 180);
+  setTimeout(scrollChatToBottom, 420);
+})();
+</script>
+"""
+
 # ── Page entry ────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    ensure_state()
+
     left, center, right = st.columns([1.15, 2.75, 1.1], gap="large")
-    with left:
+    with left, st.container(key="left_scroll_rail"):
         # Marker scopes the column-divider CSS to this top-level layout only.
         st.markdown('<span id="_desk_marker" style="display:none"></span>', unsafe_allow_html=True)
         _render_left_panel()
@@ -170,11 +217,11 @@ def main() -> None:
         st.markdown(
             '<div class="console-header">'
             '<span class="console-title">Refund Decision Console</span>'
-            '<span class="console-sub">Run a scenario or describe a request — the decision appears here</span>'
+            '<span class="console-sub">Run a scenario or describe a request, and the decision appears here</span>'
             '</div>',
             unsafe_allow_html=True,
         )
-        with st.container(border=True):
+        with st.container(border=True, key="chat_card"):
             _render_conversation()
         render_composer()
     with right:
@@ -197,27 +244,61 @@ def _render_left_panel() -> None:
     st.markdown('<p class="panel-label">Test scenarios</p>', unsafe_allow_html=True)
 
     for scenario in DEMO_SCENARIOS:
-        exp     = scenario["expected"]
-        exp_cls = exp.lower()
+        exp_cls = scenario["expected"].lower()
 
-        with st.container(border=True):
+        with st.container(border=True, key=f"scncard_{exp_cls}_{scenario['key']}"):
             if st.button(
                 scenario["label"],
                 key=f"s_{scenario['key']}",
                 use_container_width=True,
             ):
                 _run_scenario(scenario)
-            st.markdown(
-                f'<div class="scenario-meta">'
-                f'<span class="scenario-why">{scenario["why"]}</span>'
-                f'<span class="chip chip-{exp_cls}">{exp}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
 
     st.markdown('<hr style="margin:0.8rem 0;border-color:var(--border)">', unsafe_allow_html=True)
     st.markdown('<p class="panel-label">Recent sessions</p>', unsafe_allow_html=True)
-    _render_session_list()
+    with st.container():
+        st.markdown('<span id="_recent_sessions_marker" style="display:none"></span>', unsafe_allow_html=True)
+        _render_session_list()
+
+
+_RECENT_SESSION_LIMIT = 5
+_SHOW_ALL_RECENT_SESSIONS = "show_all_recent_sessions"
+
+
+def _render_session_card(sess: dict[str, Any]) -> None:
+    sid      = sess["session_id"]
+    email    = sess.get("customer_email") or "—"
+    short_id = sid[-10:]
+    detail, _ = fetch_session_detail(sid)
+
+    decs       = (detail or {}).get("final_decisions", [])
+    tool_calls = (detail or {}).get("tool_calls", [])
+    traces     = (detail or {}).get("traces", [])
+
+    if decs:
+        dt       = decs[-1]["decision_type"]
+        chip_cls = dt.lower()
+        chip_lbl = dt
+    elif any(c["status"] == "failed" for c in tool_calls):
+        chip_cls, chip_lbl = "errored", "ERRORED"
+    elif tool_calls or traces:
+        chip_cls, chip_lbl = "incomplete", "INCOMPLETE"
+    else:
+        chip_cls, chip_lbl = "no-activity", "NO ACTIVITY"
+
+    chip_html = f'<span class="chip chip-{chip_cls}">{chip_lbl}</span>'
+
+    # Two-row card: ID + chip on top, email below
+    st.markdown(
+        f'<div class="session-card">'
+        f'<div class="session-card-top">'
+        f'<span class="s-id">{short_id}</span>'
+        f'{chip_html}'
+        f'</div>'
+        f'<span class="s-email">{email}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_session_list() -> None:
@@ -226,43 +307,31 @@ def _render_session_list() -> None:
         st.caption("No sessions yet.")
         return
 
-    for sess in list(reversed(sessions))[:6]:
-        sid      = sess["session_id"]
-        email    = sess.get("customer_email") or "—"
-        short_id = sid[-10:]
-        detail, _ = fetch_session_detail(sid)
+    ordered = list(reversed(sessions))
 
-        decs       = (detail or {}).get("final_decisions", [])
-        tool_calls = (detail or {}).get("tool_calls", [])
-        traces     = (detail or {}).get("traces", [])
+    for sess in ordered[:_RECENT_SESSION_LIMIT]:
+        _render_session_card(sess)
 
-        if decs:
-            dt       = decs[-1]["decision_type"]
-            chip_cls = dt.lower()
-            chip_lbl = dt
-        elif any(c["status"] == "failed" for c in tool_calls):
-            chip_cls, chip_lbl = "errored", "ERRORED"
-        elif tool_calls or traces:
-            chip_cls, chip_lbl = "incomplete", "INCOMPLETE"
-        else:
-            chip_cls, chip_lbl = "no-activity", "NO ACTIVITY"
+    overflow = ordered[_RECENT_SESSION_LIMIT:]
+    if not overflow:
+        st.session_state[_SHOW_ALL_RECENT_SESSIONS] = False
+        return
 
-        chip_html = f'<span class="chip chip-{chip_cls}">{chip_lbl}</span>'
+    if not st.session_state.get(_SHOW_ALL_RECENT_SESSIONS, False):
+        if st.button(
+            f"Show {len(overflow)} more",
+            key="show_more_recent_sessions",
+            use_container_width=True,
+        ):
+            st.session_state[_SHOW_ALL_RECENT_SESSIONS] = True
+            st.rerun()
+        return
 
-        # Two-row card: ID + chip on top, email below
-        st.markdown(
-            f'<div class="session-card">'
-            f'<div class="session-card-top">'
-            f'<span class="s-id">{short_id}</span>'
-            f'{chip_html}'
-            f'</div>'
-            f'<span class="s-email">{email}</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+    for sess in overflow:
+        _render_session_card(sess)
 
 
-def _run_scenario(scenario: dict[str, str]) -> None:
+def _run_scenario(scenario: DemoScenario) -> None:
     reset_session()
     msg = scenario["message"]
     st.session_state[SK.CHAT_MESSAGES].append({"role": "user", "content": msg})
@@ -298,6 +367,13 @@ def _render_conversation() -> None:
 
     # Anchor at the bottom so the container scrolls to newest message
     st.markdown('<div id="chat-bottom"></div>', unsafe_allow_html=True)
+    _auto_scroll_chat()
+
+
+def _auto_scroll_chat() -> None:
+    messages = st.session_state.get(SK.CHAT_MESSAGES, [])
+    token = f"{len(messages)}-{int(bool(st.session_state.get(SK.PROCESSING)))}"
+    components.html(_CHAT_AUTOSCROLL_SCRIPT.replace("__TOKEN__", token), height=0, width=0)
 
 
 def _render_message(msg: dict[str, Any]) -> None:
@@ -322,7 +398,7 @@ def render_composer() -> None:
     composer_nonce = st.session_state.setdefault("composer_draft_nonce", 0)
     composer_key = f"composer_draft_{composer_nonce}"
 
-    with st.container(border=True):
+    with st.container(border=True, key="composer_card"):
         # Marker turns this container into the bottom composer card (CSS :has on id).
         st.markdown('<span id="_composer_marker" style="display:none"></span>', unsafe_allow_html=True)
 
@@ -330,9 +406,9 @@ def render_composer() -> None:
         status_markup = (
             '<span style="color:var(--muted)">Voice or type your request below</span>'
             if voice_state == "idle"
-            else '<span style="color:var(--deny)">● Listening — live transcript appears below</span>'
+            else '<span style="color:var(--deny)">● Listening, live transcript appears below</span>'
             if voice_state == "recording"
-            else '<span style="color:var(--approve)">✓ Transcript ready — edit or send</span>'
+            else '<span style="color:var(--approve)">✓ Transcript ready, edit or send</span>'
         )
         st.markdown(
             f'<div style="min-height:1.1rem;margin:0 0 0.3rem;font-size:0.76rem">{status_markup}</div>',
@@ -358,6 +434,7 @@ def render_composer() -> None:
             .replace("__TOKEN__", str(composer_nonce)),
             unsafe_allow_javascript=True,
         )
+        st.html(_ENTER_TO_SEND_SCRIPT, unsafe_allow_javascript=True)
 
         c_actions, c_cancel, c_spacer, c_send = st.columns([0.8, 1.1, 3.1, 1.6], gap="small")
         c_spacer.empty()
@@ -500,24 +577,30 @@ def _render_intel_body(intel: dict[str, Any], *, live: bool) -> None:
     tool_progress = intel.get("tool_progress", [])
 
     if customer:
-        name  = customer.get("name") or customer.get("full_name") or "—"
-        email = customer.get("email") or "—"
-        st.markdown(
-            f'<p class="intel-key">Customer</p>'
-            f'<p class="intel-val">{name}</p>'
-            f'<p class="intel-sub">{email}</p>',
-            unsafe_allow_html=True,
-        )
+        email = customer.get("email") or ""
+        name  = customer.get("name") or customer.get("full_name") or ""
+        rows  = ""
+        if email:
+            rows += f'<div class="case-kv"><span class="case-kv-key">Email</span><span class="case-kv-val">{email}</span></div>'
+        if name:
+            rows += f'<div class="case-kv"><span class="case-kv-key">Name</span><span class="case-kv-val">{name}</span></div>'
+        if rows:
+            st.markdown(
+                f'<p class="intel-key">Customer</p><div class="case-fact">{rows}</div>',
+                unsafe_allow_html=True,
+            )
 
     if order:
         order_id  = order.get("order_id") or "—"
-        item_name = order.get("item_name") or order.get("product_name") or "—"
+        item_name = order.get("item_name") or order.get("product_name") or ""
         amount    = order.get("amount") or order.get("total_amount")
-        amount_s  = f" · ${amount:.2f}" if amount else ""
+        rows  = f'<div class="case-kv"><span class="case-kv-key">ID</span><span class="case-kv-val">{order_id}</span></div>'
+        if item_name:
+            rows += f'<div class="case-kv"><span class="case-kv-key">Item</span><span class="case-kv-val dim">{item_name}</span></div>'
+        if amount:
+            rows += f'<div class="case-kv"><span class="case-kv-key">Amt</span><span class="case-kv-val">${amount:.2f}</span></div>'
         st.markdown(
-            f'<p class="intel-key">Order</p>'
-            f'<p class="intel-val">{order_id}</p>'
-            f'<p class="intel-sub">{item_name}{amount_s}</p>',
+            f'<p class="intel-key">Order</p><div class="case-fact">{rows}</div>',
             unsafe_allow_html=True,
         )
 
@@ -525,7 +608,6 @@ def _render_intel_body(intel: dict[str, Any], *, live: bool) -> None:
         dt       = decision["decision_type"]
         cls      = dt.lower()
         _, label = DECISION_COPY.get(dt, ("", dt))
-        # Self-contained verdict block — open and close in one call
         st.markdown(
             f'<p class="intel-key">Decision</p>'
             f'<div class="verdict-block {cls}">'
@@ -544,33 +626,44 @@ def _render_intel_body(intel: dict[str, Any], *, live: bool) -> None:
 
     if reason_codes:
         codes_html = "".join(
-            f'<p class="reason-code">— {r.replace("_", " ").capitalize()}</p>'
+            f'<span class="reason-code">{r.replace("_", " ").capitalize()}</span>'
             for r in reason_codes
         )
         st.markdown(
-            f'<p class="intel-key">Policy</p>{codes_html}',
+            f'<p class="intel-key">Policy</p>'
+            f'<div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-bottom:0.35rem">{codes_html}</div>',
             unsafe_allow_html=True,
         )
 
     if tool_progress:
-        label_text = "Tools · live" if live else "Tools"
-        rows_html = "".join(
-            '<p class="tool-row">'
-            f'<span class="tool-{("ok" if s["status"] == "succeeded" else ("fail" if s["status"] == "failed" else "pending"))}">'
-            f'{"✓" if s["status"] == "succeeded" else ("✕" if s["status"] == "failed" else "·")}'
-            f'</span> {s["label"]}</p>'
-            for s in tool_progress
-        )
+        n_unique = len(tool_progress)
+        label_text = f"Tools · {n_unique}" + (" · live" if live else "")
+
+        def _tool_row(s: dict[str, Any]) -> str:
+            status   = s["status"]
+            icon_cls = "ok" if status == "succeeded" else ("fail" if status == "failed" else "pending")
+            icon     = "✓" if status == "succeeded" else ("✕" if status == "failed" else "·")
+            count    = s.get("count", 1)
+            badge    = f'<span class="tool-count">×{count}</span>' if count > 1 else ""
+            return (
+                '<div class="tool-row">'
+                f'<span class="tool-{icon_cls}">{icon}</span>'
+                f'<span class="tool-label">{s["label"]}</span>'
+                f'{badge}'
+                '</div>'
+            )
+
+        rows_html = "".join(_tool_row(s) for s in tool_progress)
         st.markdown(
-            f'<hr style="border-color:var(--border);margin:0.6rem 0">'
+            f'<hr style="border-color:var(--border);margin:0.5rem 0 0.4rem">'
             f'<p class="intel-key">{label_text}</p>'
             f'{rows_html}',
             unsafe_allow_html=True,
         )
     elif live:
         st.markdown(
-            '<hr style="border-color:var(--border);margin:0.6rem 0">'
+            '<hr style="border-color:var(--border);margin:0.5rem 0 0.4rem">'
             '<p class="intel-key">Tools · live</p>'
-            '<p class="tool-row"><span class="tool-pending">·</span> Waiting…</p>',
+            '<div class="tool-row"><span class="tool-pending">·</span><span class="tool-label">Waiting…</span></div>',
             unsafe_allow_html=True,
         )

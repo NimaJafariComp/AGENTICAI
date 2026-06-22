@@ -12,6 +12,12 @@ class DecisionType(str, Enum):
     ESCALATE = "ESCALATE"
 
 
+class DenialCategory(str, Enum):
+    HARD = "HARD_DENIAL"
+    CORRECTABLE = "CORRECTABLE_DENIAL"
+    ESCALATABLE = "ESCALATABLE_DENIAL"
+
+
 class Customer(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

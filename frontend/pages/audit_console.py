@@ -1,4 +1,4 @@
-"""Audit Console — sessions listed newest-first, each expandable for full trace."""
+"""Audit Console: sessions listed newest-first, each expandable for full trace."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -44,7 +44,7 @@ def _short_ts(iso: str) -> str:
 
 def main() -> None:
     st.markdown("### Audit Console")
-    st.caption("Sessions newest first — expand any row for full trace.")
+    st.caption("Sessions newest first. Expand any row for full trace.")
 
     sessions, err = fetch_sessions()
     if err:
@@ -130,7 +130,7 @@ def _render_detail(detail: dict[str, Any]) -> None:
         if failed_calls:
             s_cls  = "errored"
             s_label = "ERRORED"
-            s_note  = f"{len(failed_calls)} tool call{'s' if len(failed_calls) != 1 else ''} failed — no decision was reached"
+            s_note  = f"{len(failed_calls)} tool call{'s' if len(failed_calls) != 1 else ''} failed, no decision was reached"
         elif tool_calls or traces:
             s_cls  = "incomplete"
             s_label = "INCOMPLETE"

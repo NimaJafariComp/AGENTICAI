@@ -11,6 +11,16 @@ from backend.providers.ollama_provider import OllamaProvider
 from backend.trace import TraceService
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 @dataclass
 class ProviderSelection:
     provider: BaseProvider
@@ -44,8 +54,10 @@ class LLMClient:
         if requested_provider == "ollama":
             provider = OllamaProvider(
                 base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-                model=os.getenv("OLLAMA_MODEL", "llama3.1:8b"),
+                model=os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b"),
                 mode=os.getenv("OLLAMA_MODE", "local"),
+                availability_timeout=_env_float("OLLAMA_AVAILABILITY_TIMEOUT_SECONDS", 5.0),
+                chat_timeout=_env_float("OLLAMA_CHAT_TIMEOUT_SECONDS", 90.0),
             )
             if provider.is_available():
                 selection = ProviderSelection(
@@ -78,8 +90,10 @@ class LLMClient:
             return
         candidate = OllamaProvider(
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-            model=os.getenv("OLLAMA_MODEL", "llama3.1:8b"),
+            model=os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b"),
             mode=os.getenv("OLLAMA_MODE", "local"),
+            availability_timeout=_env_float("OLLAMA_AVAILABILITY_TIMEOUT_SECONDS", 5.0),
+            chat_timeout=_env_float("OLLAMA_CHAT_TIMEOUT_SECONDS", 90.0),
         )
         if candidate.is_available():
             self.selection = ProviderSelection(

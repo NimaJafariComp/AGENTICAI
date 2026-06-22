@@ -25,7 +25,7 @@ from backend.tools import RefundTools
 from backend.trace import TraceService
 from backend.transcription import TranscriptionError, TranscriptionService
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
 
 data_store = DataStore()
 trace_service = TraceService(data_store)

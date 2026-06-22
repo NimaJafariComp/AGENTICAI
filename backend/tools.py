@@ -13,6 +13,15 @@ from backend.trace import TraceService
 
 DECISION_TTL = timedelta(minutes=30)
 RETRY_DEMO_ORDER_ID = "ORD-1004"
+REFUND_TOOL_NAMES = (
+    "lookup_customer",
+    "lookup_order",
+    "get_refund_policy",
+    "check_refund_eligibility",
+    "approve_refund",
+    "deny_refund",
+    "escalate_refund",
+)
 
 
 class ToolAuthorizationError(RuntimeError):

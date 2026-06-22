@@ -13,16 +13,16 @@ def test_ollama_provider_uses_native_chat_api() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/chat":
             payload = json.loads(request.content.decode("utf-8"))
-            assert payload["model"] == "llama3.1:8b"
+            assert payload["model"] == "qwen2.5:0.5b"
             assert payload["stream"] is False
             return httpx.Response(200, json={"message": {"content": "Ollama reply"}})
         if request.url.path == "/api/tags":
-            return httpx.Response(200, json={"models": [{"name": "llama3.1:8b"}]})
+            return httpx.Response(200, json={"models": [{"name": "qwen2.5:0.5b"}]})
         return httpx.Response(404)
 
     provider = OllamaProvider(
         base_url="http://ollama.local",
-        model="llama3.1:8b",
+        model="qwen2.5:0.5b",
         transport=httpx.MockTransport(handler),
     )
 
@@ -35,12 +35,12 @@ def test_ollama_provider_uses_native_chat_api() -> None:
 def test_ollama_unavailable_when_model_not_pulled() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/tags":
-            return httpx.Response(200, json={"models": [{"name": "llama3.2:3b"}]})
+            return httpx.Response(200, json={"models": [{"name": "qwen2.5:0.5b"}]})
         return httpx.Response(404)
 
     provider = OllamaProvider(
         base_url="http://ollama.local",
-        model="llama3.1:8b",
+        model="qwen3:0.6b",
         transport=httpx.MockTransport(handler),
     )
 
@@ -62,25 +62,22 @@ def test_llm_client_uses_mock_provider_directly(monkeypatch) -> None:
 def test_llm_client_falls_back_to_mock_and_logs_trace(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "ollama")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    monkeypatch.setenv("OLLAMA_MODEL", "llama3.1:8b")
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:0.5b")
 
-    original_is_available = OllamaProvider.is_available
-    OllamaProvider.is_available = lambda self: False
-    try:
-        store = DataStore(runtime_db_path=tmp_path / "runtime.db")
-        store.init_runtime_db()
-        trace_service = TraceService(store)
-        client = LLMClient.from_env(trace_service=trace_service)
+    monkeypatch.setattr(OllamaProvider, "is_available", lambda self: False)
 
-        session_id = "session-provider-fallback"
-        trace_service.start_session(session_id)
-        reply = client.chat(
-            messages=[{"role": "user", "content": "hello"}],
-            session_id=session_id,
-        )
-        traces = store.list_traces(session_id=session_id)
-    finally:
-        OllamaProvider.is_available = original_is_available
+    store = DataStore(runtime_db_path=tmp_path / "runtime.db")
+    store.init_runtime_db()
+    trace_service = TraceService(store)
+    client = LLMClient.from_env(trace_service=trace_service)
+
+    session_id = "session-provider-fallback"
+    trace_service.start_session(session_id)
+    reply = client.chat(
+        messages=[{"role": "user", "content": "hello"}],
+        session_id=session_id,
+    )
+    traces = store.list_traces(session_id=session_id)
 
     assert reply.provider_name == "mock"
     assert client.provider_info()["fallback_used"] is True

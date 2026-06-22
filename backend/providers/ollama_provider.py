@@ -14,13 +14,15 @@ class OllamaProvider(BaseProvider):
         base_url: str,
         model: str,
         mode: str = "local",
-        timeout: float = 5.0,
+        availability_timeout: float = 5.0,
+        chat_timeout: float = 90.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self._model = model
         self.mode = mode
-        self.timeout = timeout
+        self.availability_timeout = availability_timeout
+        self.chat_timeout = chat_timeout
         self.transport = transport
 
     @property
@@ -33,7 +35,7 @@ class OllamaProvider(BaseProvider):
 
     def is_available(self) -> bool:
         try:
-            with self._client() as client:
+            with self._client(timeout=self.availability_timeout) as client:
                 response = client.get("/api/tags")
             if response.status_code != 200:
                 return False
@@ -44,8 +46,8 @@ class OllamaProvider(BaseProvider):
     def _model_is_pulled(self, tags_data: dict[str, Any]) -> bool:
         models = tags_data.get("models") or []
         available = {str(entry.get("name", "")) for entry in models}
-        # Ollama reports tagged names like "llama3.2:3b"; accept an untagged
-        # match too so "llama3.2" resolves against "llama3.2:latest".
+        # Ollama reports tagged names like "qwen2.5:0.5b"; accept an untagged
+        # match too so "qwen2.5" resolves against "qwen2.5:latest".
         if self._model in available:
             return True
         base_names = {name.split(":", 1)[0] for name in available}
@@ -68,7 +70,7 @@ class OllamaProvider(BaseProvider):
             "stream": False,
         }
 
-        with self._client() as client:
+        with self._client(timeout=self.chat_timeout) as client:
             response = client.post("/api/chat", json=payload)
             response.raise_for_status()
             data = response.json()
@@ -83,10 +85,10 @@ class OllamaProvider(BaseProvider):
             raw_response=data,
         )
 
-    def _client(self) -> httpx.Client:
+    def _client(self, *, timeout: float) -> httpx.Client:
         return httpx.Client(
             base_url=self.base_url,
-            timeout=self.timeout,
+            timeout=timeout,
             transport=self.transport,
         )
 

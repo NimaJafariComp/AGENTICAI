@@ -73,7 +73,7 @@ Expected:
 
 Run:
 
-- `Escalate: amount over $500`
+- `Escalated + retry: over $500 threshold`
 
 Expected:
 

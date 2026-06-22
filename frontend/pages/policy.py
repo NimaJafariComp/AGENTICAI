@@ -1,5 +1,5 @@
 """
-Policy page — human-readable refund policy with machine-readable rule summary
+Policy page: human-readable refund policy with machine-readable rule summary
 and a callout explaining server-side enforcement.
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ def main() -> None:
     st.markdown("### Refund Policy")
     st.markdown(
         '<p style="font-size:0.88rem;color:var(--muted);margin-bottom:1rem">'
-        "The governing rules the policy engine enforces. The LLM explains decisions — "
+        "The governing rules the policy engine enforces. The LLM explains decisions but "
         "it cannot override them."
         "</p>",
         unsafe_allow_html=True,
@@ -33,7 +33,7 @@ def main() -> None:
         ("return_window",        f"{meta.get('return_window_days', '—')} days",          "Requests older than this are automatically denied"),
         ("final_sale",           "No returns",                                             "Items flagged final_sale are never eligible regardless of window"),
         ("escalation_threshold", f"${meta.get('human_escalation_amount', '—')}",          "Orders above this amount require human approval"),
-        ("policy_version",       meta.get("policy_version", "—"),                         "Loaded at startup — changes require backend restart"),
+        ("policy_version",       meta.get("policy_version", "—"),                         "Loaded at startup; changes require backend restart"),
         ("policy_name",          meta.get("policy_name", "—"),                            ""),
         ("decision_id",          "Required for terminal actions",                          "Issued by check_refund_eligibility; enforced by the tool executor"),
         ("injection_handling",   "Escalate on suspicious override claims",                 "Detected via policy engine heuristics, not LLM judgment"),
