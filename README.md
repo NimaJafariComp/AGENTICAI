@@ -1,5 +1,7 @@
 # AgenticAI
 
+[▶ 5-minute Loom demo](https://www.loom.com/share/8ba357bf7fb04392b82bf79ccb12dbb6)
+
 Local demo app for an AI customer support agent that handles e-commerce refund requests under a deterministic refund policy.
 
 ## Status
@@ -316,7 +318,7 @@ Unknown reason codes default to `HARD_DENIAL` (conservative).
 
 ## Before production
 
-The local demo is intentionally scoped. Shipping to production requires the following:
+The local demo is intentionally scoped. A full gap analysis with status column is in [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md). Summary of what shipping to production requires:
 
 | Area | Recommendation |
 | --- | --- |
