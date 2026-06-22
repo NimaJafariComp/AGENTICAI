@@ -196,26 +196,12 @@ Included:
 
 ## Demo flow
 
-Fastest walkthrough path:
-
-1. Open Customer chat.
-2. Optionally record a short voice note and transcribe it.
-3. Run `Approved refund`.
-4. Run `Denied: final sale`.
-5. Run `Escalated + retry: over $500 threshold`.
-6. Run `Prompt injection attempt`.
-7. Open Admin dashboard and inspect traces, including `voice_input_received` and `speech_to_text_result`.
-
 Challenge satisfaction summary:
 
 - satisfies the main architecture and safety constraints
 - satisfies the required approve / deny / escalate demo branches
 - satisfies local-first demo expectations
 - satisfies the trace completeness goals for retry visibility and latency/token logging
-
-Detailed script:
-
-- see [DEMO.md](DEMO.md)
 
 ## Session decision hierarchy
 
