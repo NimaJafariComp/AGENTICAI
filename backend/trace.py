@@ -40,6 +40,7 @@ class TraceService:
         latency_ms: int | None = None,
         token_usage: dict[str, object] | None = None,
         estimated_cost_usd: float | None = None,
+        cost_label: str | None = None,
     ) -> RuntimeTrace:
         return self.data_store.append_trace(
             CreateRuntimeTraceInput(
@@ -50,6 +51,7 @@ class TraceService:
                 latency_ms=latency_ms,
                 token_usage=token_usage,
                 estimated_cost_usd=estimated_cost_usd,
+                cost_label=cost_label,
             )
         )
 

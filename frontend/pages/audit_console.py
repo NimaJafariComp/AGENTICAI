@@ -23,23 +23,23 @@ _OUTCOME_ICON  = {"APPROVE": "✓", "DENY": "✕", "ESCALATE": "⚠"}
 _OUTCOME_LABEL = {"APPROVE": "APPROVED", "DENY": "DENIED", "ESCALATE": "ESCALATED"}
 
 
-def _session_status(outcome: str, tool_calls: list, traces: list) -> tuple[str, str]:
-    """Return (icon, label) for a session row."""
-    if outcome:
-        return _OUTCOME_ICON.get(outcome, "·"), _OUTCOME_LABEL.get(outcome, outcome)
-    failed = any(c["status"] == "failed" for c in tool_calls)
-    if failed:
-        return "✕", "ERRORED"
-    if tool_calls or traces:
-        return "—", "INCOMPLETE"
-    return "○", "NO ACTIVITY"
-
 
 def _short_ts(iso: str) -> str:
     try:
         return datetime.fromisoformat(iso).strftime("%b %d  %H:%M")
     except (ValueError, TypeError):
         return ""
+
+
+_DETAIL_CACHE_KEY = "_audit_detail_cache"
+
+
+def _cached_detail(sid: str) -> dict | None:
+    cache = st.session_state.setdefault(_DETAIL_CACHE_KEY, {})
+    if sid not in cache:
+        detail, _ = fetch_session_detail(sid)
+        cache[sid] = detail
+    return cache[sid]
 
 
 def main() -> None:
@@ -65,18 +65,12 @@ def main() -> None:
         sid   = sess["session_id"]
         email = sess.get("customer_email") or "no email"
         ts    = _short_ts(sess.get("created_at", ""))
+        ts_part = f"  ·  {ts}" if ts else ""
 
-        detail, _ = fetch_session_detail(sid)
-        decs       = (detail or {}).get("final_decisions", [])
-        tool_calls = (detail or {}).get("tool_calls", [])
-        traces     = (detail or {}).get("traces", [])
-        outcome    = decs[-1]["decision_type"] if decs else ""
-        icon, label_txt = _session_status(outcome, tool_calls, traces)
-        ts_part    = f"  ·  {ts}" if ts else ""
-
-        row_label = f"{icon}  {label_txt}  ·  {email}  ·  #{sid[-8:]}{ts_part}"
+        row_label = f"#{sid[-8:]}  ·  {email}{ts_part}"
 
         with st.expander(row_label, expanded=False):
+            detail = _cached_detail(sid)
             if detail:
                 _render_detail(detail)
             else:
@@ -93,6 +87,10 @@ def _render_detail(detail: dict[str, Any]) -> None:
                   sum((c.get("latency_ms") or 0) for c in tool_calls))
     total_tok  = sum(_tok(t.get("token_usage")) for t in traces)
     total_cost = sum(float(t.get("estimated_cost_usd") or 0) for t in traces)
+    # If every LLM trace carries the same cost label (e.g. all "local"), surface
+    # that label for the total rather than showing "$0.0000".
+    llm_labels = {t.get("cost_label") for t in traces if t.get("event_type") == "llm_response"}
+    total_cost_label = llm_labels.pop() if len(llm_labels) == 1 else None
 
     st.markdown(
         f'<div class="metric-grid">'
@@ -102,7 +100,7 @@ def _render_detail(detail: dict[str, Any]) -> None:
         f'<div class="metric{"  alert" if failed else ""}"><div class="k">Failed</div><div class="v">{len(failed)}</div></div>'
         f'<div class="metric"><div class="k">Latency</div><div class="v">{total_lat} ms</div></div>'
         f'<div class="metric"><div class="k">Tokens</div><div class="v">{total_tok}</div></div>'
-        f'<div class="metric"><div class="k">Cost</div><div class="v">{_cost(total_cost or None)}</div></div>'
+        f'<div class="metric"><div class="k">Cost</div><div class="v">{_cost(total_cost or None, total_cost_label)}</div></div>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -167,7 +165,7 @@ def _render_timeline(traces: list[dict[str, Any]]) -> None:
         title = "Voice input" if _is_voice(trace["event_type"]) else _humanize(trace["event_type"])
         lat   = trace.get("latency_ms") or 0
         tok   = _tok(trace.get("token_usage"))
-        cost  = _cost(trace.get("estimated_cost_usd"))
+        cost  = _cost(trace.get("estimated_cost_usd"), trace.get("cost_label"))
         meta  = f"{_ts(trace['created_at'])} · {lat} ms · {tok} tok · {cost}"
 
         st.markdown(

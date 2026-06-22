@@ -16,7 +16,7 @@ ollama-start:
 	ollama_url="$${ollama_url:-$(OLLAMA_BASE_URL)}"; \
 	ollama_model="$$(grep -E '^OLLAMA_MODEL=' .env 2>/dev/null | tail -n1 | cut -d= -f2)"; \
 	ollama_model="$${ollama_model:-$${OLLAMA_MODEL}}"; \
-	ollama_model="$${ollama_model:-qwen2.5:0.5b}"; \
+	ollama_model="$${ollama_model:-llama3.2:3b}"; \
 	if [ "$$provider" = "ollama" ]; then \
 		if curl -fsS "$$ollama_url/api/tags" >/dev/null 2>&1; then \
 			echo "Ollama already running at $$ollama_url."; \

@@ -152,6 +152,7 @@ class DataStore:
             self._ensure_column(connection, "traces", "latency_ms", "INTEGER")
             self._ensure_column(connection, "traces", "token_usage_json", "TEXT")
             self._ensure_column(connection, "traces", "estimated_cost_usd", "REAL")
+            self._ensure_column(connection, "traces", "cost_label", "TEXT")
             self._ensure_column(connection, "tool_calls", "latency_ms", "INTEGER")
             self._ensure_column(connection, "tool_calls", "retry_group", "TEXT")
             self._ensure_column(
@@ -173,22 +174,19 @@ class DataStore:
         with self._connect_runtime_db() as connection:
             connection.execute(
                 """
-                INSERT OR REPLACE INTO sessions (
+                INSERT INTO sessions (
                     session_id, customer_email, intake_state_json, created_at, updated_at
                 )
-                VALUES (
-                    ?,
-                    ?,
-                    ?,
-                    COALESCE((SELECT created_at FROM sessions WHERE session_id = ?), ?),
-                    ?
-                )
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    customer_email   = COALESCE(excluded.customer_email, sessions.customer_email),
+                    intake_state_json = COALESCE(excluded.intake_state_json, sessions.intake_state_json),
+                    updated_at       = excluded.updated_at
                 """,
                 (
                     payload.session_id,
                     payload.customer_email,
                     self._serialize_json(payload.intake_state),
-                    payload.session_id,
                     timestamp,
                     timestamp,
                 ),
@@ -242,7 +240,7 @@ class DataStore:
     def list_traces(self, session_id: str | None = None) -> list[RuntimeTrace]:
         query = """
             SELECT trace_id, session_id, event_type, payload_json, latency_ms,
-                   token_usage_json, estimated_cost_usd, created_at
+                   token_usage_json, estimated_cost_usd, cost_label, created_at
             FROM traces
         """
         params: tuple[Any, ...] = ()
@@ -263,6 +261,7 @@ class DataStore:
                 latency_ms=row["latency_ms"],
                 token_usage_json=row["token_usage_json"],
                 estimated_cost_usd=row["estimated_cost_usd"],
+                cost_label=row["cost_label"],
                 created_at=self._parse_timestamp(row["created_at"]),
             )
             for row in rows
@@ -273,7 +272,7 @@ class DataStore:
             row = connection.execute(
                 """
                 SELECT trace_id, session_id, event_type, payload_json, latency_ms,
-                       token_usage_json, estimated_cost_usd, created_at
+                       token_usage_json, estimated_cost_usd, cost_label, created_at
                 FROM traces
                 WHERE trace_id = ?
                 """,
@@ -291,6 +290,7 @@ class DataStore:
             latency_ms=row["latency_ms"],
             token_usage_json=row["token_usage_json"],
             estimated_cost_usd=row["estimated_cost_usd"],
+            cost_label=row["cost_label"],
             created_at=self._parse_timestamp(row["created_at"]),
         )
 
@@ -303,9 +303,9 @@ class DataStore:
                 """
                 INSERT INTO traces (
                     trace_id, session_id, event_type, payload_json,
-                    latency_ms, token_usage_json, estimated_cost_usd, created_at
+                    latency_ms, token_usage_json, estimated_cost_usd, cost_label, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.trace_id,
@@ -315,6 +315,7 @@ class DataStore:
                     payload.latency_ms,
                     self._serialize_json(payload.token_usage),
                     payload.estimated_cost_usd,
+                    payload.cost_label,
                     timestamp,
                 ),
             )
@@ -327,6 +328,7 @@ class DataStore:
             latency_ms=payload.latency_ms,
             token_usage_json=self._serialize_json(payload.token_usage),
             estimated_cost_usd=payload.estimated_cost_usd,
+            cost_label=payload.cost_label,
             created_at=self._parse_timestamp(timestamp),
         )
 

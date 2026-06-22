@@ -46,12 +46,15 @@ class OllamaProvider(BaseProvider):
     def _model_is_pulled(self, tags_data: dict[str, Any]) -> bool:
         models = tags_data.get("models") or []
         available = {str(entry.get("name", "")) for entry in models}
-        # Ollama reports tagged names like "qwen2.5:0.5b"; accept an untagged
-        # match too so "qwen2.5" resolves against "qwen2.5:latest".
         if self._model in available:
             return True
+        # Base-name fallback only applies when the requested model has no
+        # explicit tag (e.g. "qwen2.5" should match "qwen2.5:latest").
+        # A tagged request like "qwen2.5:3b" must match exactly.
+        if ":" in self._model:
+            return False
         base_names = {name.split(":", 1)[0] for name in available}
-        return self._model.split(":", 1)[0] in base_names
+        return self._model in base_names
 
     def chat(
         self,
@@ -82,6 +85,7 @@ class OllamaProvider(BaseProvider):
             content=content,
             token_usage=self._extract_token_usage(data),
             estimated_cost_usd=0.0 if self.mode == "local" else None,
+            cost_label="local" if self.mode == "local" else None,
             raw_response=data,
         )
 

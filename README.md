@@ -76,35 +76,54 @@ Copy `.env.example` to `.env` when ready:
 cp .env.example .env
 ```
 
-Default provider config:
+Four LLM providers are supported via `LLM_PROVIDER`:
+
+| Provider | When to use |
+| --- | --- |
+| `ollama` (default) | Local inference, no API key required |
+| `openai` | OpenAI API (GPT-4o, GPT-4o-mini, etc.) |
+| `anthropic` | Anthropic API (Claude Haiku, Sonnet, Opus) |
+| `mock` | Deterministic stub for CI and demos |
+
+### Local Ollama (default)
 
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_MODE=local
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:0.5b
-BACKEND_BASE_URL=http://localhost:8000
-STT_PROVIDER=onnx_asr
-STT_MODEL=nemo-parakeet-tdt-0.6b-v3
-STT_LANGUAGE=en
-STT_MAX_DURATION_SECONDS=20
-STT_ENABLED=true
+OLLAMA_MODEL=llama3.2:3b
 ```
 
-Ollama setup notes:
+- No API key needed — pull the model once: `ollama pull llama3.2:3b`
+- The backend health-checks Ollama and verifies the model is present; if Ollama is down or the model is not pulled, it falls back to `MockProvider` and records a `provider_fallback` trace
+- Cost display shows `local` (no per-token charge)
 
-- local Ollama needs **no API key** — it just needs the model pulled to your machine
-- pull the default model once: `ollama pull qwen2.5:0.5b` (very small and fast; the LLM only writes the wording, the policy engine makes every decision)
-- the backend health-checks Ollama and verifies the model is present; if Ollama is down or the model is not pulled, it falls back to `MockProvider` and records a `provider_fallback` trace
-- cloud-capable Ollama: point `OLLAMA_BASE_URL` at the endpoint; auth (if any) is handled by that endpoint, not by this app
+### OpenAI
 
-To force mock mode:
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini   # optional, gpt-4o-mini is the default
+```
+
+- Token costs are calculated automatically from the pricing table in `backend/providers/pricing.py` and displayed in the Audit Console
+- If `OPENAI_API_KEY` is missing the backend falls back to `MockProvider`
+
+### Anthropic
+
+```env
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # optional, Haiku is the default
+```
+
+- Same cost calculation and fallback behaviour as OpenAI
+
+### Mock (no LLM)
 
 ```env
 LLM_PROVIDER=mock
 ```
 
-Recommended demo mode:
+Recommended for demos and CI:
 
 ```bash
 LLM_PROVIDER=mock make dev
@@ -250,6 +269,8 @@ Reason codes: `MISSING_RECEIPT`, `MISSING_ORDER_ID`, `MISSING_ITEM_CONDITION`, `
 **ESCALATABLE_DENIAL** — borderline or exception case; no auto-decision.
 
 Reason codes: `POLICY_EXCEPTION_REQUESTED`, `CUSTOMER_DISPUTES_POLICY_DATA`, `BORDERLINE_RETURN_WINDOW`, `HIGH_VALUE_ORDER`, `CONFLICTING_INFORMATION`, `POSSIBLE_FRAUD`, `SUSPICIOUS_OR_INCONSISTENT_CLAIM`.
+
+**Note:** A final sale item reported as damaged or defective bypasses the `FINAL_SALE_ITEM` hard denial and produces an immediate ESCALATE decision (`FINAL_SALE_ITEM_DAMAGE_CLAIM`). Final sale covers buyer's remorse, not manufacturer defects.
 
 - Allowed: escalate, add notes, explain reason.
 - Blocked: automatic approval or denial.

@@ -53,7 +53,8 @@ class MockProvider(BaseProvider):
             model_name=self.model_name,
             content=content,
             token_usage=self._estimate_token_usage(messages=messages, system_prompt=system_prompt, content=content),
-            estimated_cost_usd=0.0,
+            estimated_cost_usd=None,
+            cost_label="mock",
             raw_response={"mock": True, "system_prompt_used": bool(system_prompt)},
         )
 

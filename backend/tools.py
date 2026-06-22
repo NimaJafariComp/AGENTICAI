@@ -240,6 +240,31 @@ class RefundTools:
             tool_name="escalate_refund",
         )
 
+    def customer_requested_escalation(self, *, session_id: str) -> str:
+        """Create an ESCALATE decision when a customer explicitly requests it after a denial.
+
+        Bypasses the policy engine — the customer's explicit request is the trigger.
+        Returns the new decision_id.
+        """
+        decision_id = f"decision-{uuid4()}"
+        self.data_store.create_final_decision(
+            payload=self._decision_record_payload(
+                decision_id=decision_id,
+                session_id=session_id,
+                decision_type=DecisionType.ESCALATE,
+                request_fingerprint=f"customer-escalation-{session_id}",
+                reason_codes=["CUSTOMER_REQUESTED_ESCALATION"],
+            )
+        )
+        self._log_tool_call(
+            session_id=session_id,
+            tool_name="escalate_refund",
+            tool_input={"trigger": "customer_requested"},
+            tool_output={"decision_id": decision_id, "status": "escalated"},
+            latency_ms=0,
+        )
+        return decision_id
+
     def _consume_protected_decision(
         self,
         *,

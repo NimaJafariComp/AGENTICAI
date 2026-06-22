@@ -10,6 +10,9 @@ from backend.providers.mock_provider import MockProvider
 from backend.providers.ollama_provider import OllamaProvider
 from backend.trace import TraceService
 
+# API providers are imported lazily inside their branches so that missing
+# optional packages only raise at runtime when the provider is actually selected.
+
 
 def _env_float(name: str, default: float) -> float:
     raw = os.getenv(name)
@@ -54,7 +57,7 @@ class LLMClient:
         if requested_provider == "ollama":
             provider = OllamaProvider(
                 base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-                model=os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b"),
+                model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
                 mode=os.getenv("OLLAMA_MODE", "local"),
                 availability_timeout=_env_float("OLLAMA_AVAILABILITY_TIMEOUT_SECONDS", 5.0),
                 chat_timeout=_env_float("OLLAMA_CHAT_TIMEOUT_SECONDS", 90.0),
@@ -74,6 +77,50 @@ class LLMClient:
                 )
             return cls(selection, trace_service=trace_service)
 
+        if requested_provider == "openai":
+            from backend.providers.openai_provider import OpenAIProvider
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            if not api_key:
+                selection = ProviderSelection(
+                    provider=MockProvider(),
+                    requested_provider="openai",
+                    fallback_used=True,
+                    fallback_reason="OPENAI_API_KEY is not set; fell back to MockProvider.",
+                )
+            else:
+                provider = OpenAIProvider(
+                    api_key=api_key,
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                )
+                selection = ProviderSelection(
+                    provider=provider,
+                    requested_provider="openai",
+                    fallback_used=False,
+                )
+            return cls(selection, trace_service=trace_service)
+
+        if requested_provider == "anthropic":
+            from backend.providers.anthropic_provider import AnthropicProvider
+            api_key = os.getenv("ANTHROPIC_API_KEY", "")
+            if not api_key:
+                selection = ProviderSelection(
+                    provider=MockProvider(),
+                    requested_provider="anthropic",
+                    fallback_used=True,
+                    fallback_reason="ANTHROPIC_API_KEY is not set; fell back to MockProvider.",
+                )
+            else:
+                provider = AnthropicProvider(
+                    api_key=api_key,
+                    model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
+                )
+                selection = ProviderSelection(
+                    provider=provider,
+                    requested_provider="anthropic",
+                    fallback_used=False,
+                )
+            return cls(selection, trace_service=trace_service)
+
         selection = ProviderSelection(
             provider=MockProvider(),
             requested_provider=requested_provider,
@@ -90,7 +137,7 @@ class LLMClient:
             return
         candidate = OllamaProvider(
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-            model=os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b"),
+            model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
             mode=os.getenv("OLLAMA_MODE", "local"),
             availability_timeout=_env_float("OLLAMA_AVAILABILITY_TIMEOUT_SECONDS", 5.0),
             chat_timeout=_env_float("OLLAMA_CHAT_TIMEOUT_SECONDS", 90.0),

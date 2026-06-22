@@ -111,9 +111,16 @@ def build_blocked_response_prompt(
     decision_type: str,
     reason_codes: list[str],
     denial_category: str | None = None,
+    customer_message: str | None = None,
 ) -> str:
+    msg_ctx = (
+        f'The customer\'s latest message: "{customer_message}"\n\n'
+        if customer_message else ""
+    )
+
     if block_reason == "ALREADY_APPROVED":
         return (
+            f"{msg_ctx}"
             "This refund was already approved and the customer is following up. "
             "Write the support agent's response. 1 to 2 sentences. Plain prose. "
             "Confirm the refund is approved. If they have a different request, note they'd need a new conversation. "
@@ -125,6 +132,7 @@ def build_blocked_response_prompt(
 
     if block_reason == "ALREADY_ESCALATED":
         return (
+            f"{msg_ctx}"
             "This case was already escalated to a human specialist and the customer is following up. "
             "Write the support agent's response. 1 to 2 sentences. Plain prose. "
             "Confirm escalation is in progress and a specialist will follow up. "
@@ -138,6 +146,7 @@ def build_blocked_response_prompt(
     if block_reason == f"DENIED_{denial_category}":
         if denial_category == "HARD_DENIAL":
             return (
+                f"{msg_ctx}"
                 "This refund was denied under a firm policy rule and the customer is pushing back. "
                 "Write the support agent's response. 2 to 3 sentences. Plain prose. "
                 "Acknowledge their frustration, restate the decision stands, and offer escalation to a human reviewer "
@@ -151,6 +160,7 @@ def build_blocked_response_prompt(
             )
         if denial_category == "ESCALATABLE_DENIAL":
             return (
+                f"{msg_ctx}"
                 "This refund was denied for a borderline reason and the customer is following up. "
                 "Write the support agent's response. 2 to 3 sentences. Plain prose. "
                 "Explain the automated system cannot change this decision, but escalation to a specialist is available. "
@@ -163,6 +173,7 @@ def build_blocked_response_prompt(
             )
         if denial_category == "CORRECTABLE_DENIAL":
             return (
+                f"{msg_ctx}"
                 "This refund was denied due to missing or unclear information and the customer can correct it. "
                 "Write the support agent's response. 1 to 2 sentences. Plain prose. "
                 "Let them know they can provide the missing details and the request will be re-evaluated. "
@@ -173,6 +184,7 @@ def build_blocked_response_prompt(
 
     # Generic fallback for any other blocked state.
     return (
+        f"{msg_ctx}"
         f"A final decision has already been recorded for this refund: {decision_type}. "
         "The customer is sending another message. "
         "Write the support agent's response. 1 to 2 sentences. Plain prose. "
@@ -186,12 +198,15 @@ def build_decision_prompt(
     decision_type: str,
     explanation: str,
     reason_codes: list[str],
+    customer_name: str | None = None,
 ) -> str:
     """Generate a customer-facing message explaining a refund decision.
 
     Reason codes are intentionally excluded — they are internal identifiers
     that should never appear in customer-facing text. The human-readable
     explanation carries all the context the LLM needs.
+    customer_name is accepted for signature compatibility but not injected into
+    the prompt — small models echo instruction text as output.
     """
     if decision_type == "APPROVE":
         return (

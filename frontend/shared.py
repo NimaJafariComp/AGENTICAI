@@ -846,7 +846,9 @@ def _tok(token_usage: dict[str, Any] | None) -> int:
     return int((token_usage or {}).get("total_tokens") or 0)
 
 
-def _cost(value: float | None) -> str:
+def _cost(value: float | None, label: str | None = None) -> str:
+    if label:
+        return label
     return "n/a" if value is None else f"${value:.4f}"
 
 

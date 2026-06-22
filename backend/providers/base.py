@@ -15,6 +15,7 @@ class ProviderResponse(BaseModel):
     latency_ms: int | None = None
     token_usage: dict[str, Any] | None = None
     estimated_cost_usd: float | None = None
+    cost_label: str | None = None
     raw_response: dict[str, Any] | None = None
 
 

@@ -241,6 +241,7 @@ def _trace_response(trace) -> TraceResponse:
         latency_ms=trace.latency_ms,
         token_usage=json.loads(trace.token_usage_json) if trace.token_usage_json else None,
         estimated_cost_usd=trace.estimated_cost_usd,
+        cost_label=trace.cost_label,
         created_at=trace.created_at,
     )
 

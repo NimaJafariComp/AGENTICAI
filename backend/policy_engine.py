@@ -37,17 +37,26 @@ class PolicyEngine:
         evidence_missing = metadata.damaged_defective.requires_review_if_evidence_missing and not request.evidence_provided
         suspicious_terms = ("ignore policy", "override", "manager approved", "prompt", "system prompt")
 
+        is_damaged_flow = issue_type in {"damaged", "defective"} or "damaged" in claim_text or "defective" in claim_text
+
         if metadata.final_sale_non_refundable and item.final_sale:
+            if is_damaged_flow:
+                return PolicyDecision(
+                    decision_type=DecisionType.ESCALATE,
+                    reason_codes=["FINAL_SALE_ITEM_DAMAGE_CLAIM"],
+                    policy_rules=["final_sale_non_refundable", "damaged_defective"],
+                    explanation="The item is marked as final sale, but a damage or defect has been reported. A specialist will review this case.",
+                    eligible=False,
+                    requires_human_review=True,
+                )
             return PolicyDecision(
                 decision_type=DecisionType.DENY,
                 reason_codes=["FINAL_SALE_ITEM"],
                 policy_rules=["final_sale_non_refundable"],
-                explanation="Item is marked final sale and cannot be refunded.",
+                explanation="The item is marked as final sale and is not eligible for a return or refund.",
                 eligible=False,
                 requires_human_review=False,
             )
-
-        is_damaged_flow = issue_type in {"damaged", "defective"} or "damaged" in claim_text or "defective" in claim_text
 
         if (
             metadata.suspicious_claim_escalation.enabled
@@ -61,7 +70,7 @@ class PolicyEngine:
                 decision_type=DecisionType.ESCALATE,
                 reason_codes=["SUSPICIOUS_OR_INCONSISTENT_CLAIM"],
                 policy_rules=["suspicious_claim_escalation"],
-                explanation="Claim requires human review due to suspicious or inconsistent signals.",
+                explanation="This case has been referred to a specialist for further review.",
                 eligible=False,
                 requires_human_review=True,
             )
@@ -71,7 +80,7 @@ class PolicyEngine:
                 decision_type=DecisionType.ESCALATE,
                 reason_codes=["AMOUNT_OVER_HUMAN_REVIEW_THRESHOLD"],
                 policy_rules=["human_escalation_amount"],
-                explanation="Requested refund amount exceeds the automatic approval threshold.",
+                explanation="The refund amount is above the limit for automatic processing and needs specialist review.",
                 eligible=False,
                 requires_human_review=True,
             )
@@ -82,7 +91,7 @@ class PolicyEngine:
                     decision_type=DecisionType.DENY,
                     reason_codes=["DAMAGED_DEFECTIVE_NOT_ELIGIBLE"],
                     policy_rules=["damaged_defective.eligible"],
-                    explanation="Damaged or defective handling is not enabled under current policy.",
+                    explanation="Damaged and defective items are not eligible for a refund under the current return policy.",
                     eligible=False,
                     requires_human_review=False,
                 )
@@ -92,7 +101,7 @@ class PolicyEngine:
                     decision_type=DecisionType.DENY,
                     reason_codes=["DAMAGED_DEFECTIVE_OUTSIDE_SPECIAL_WINDOW"],
                     policy_rules=["damaged_defective.special_window_days"],
-                    explanation="Damaged or defective claim falls outside the special handling window.",
+                    explanation="The item was reported as damaged or defective, but the report was received after the eligible window has passed.",
                     eligible=False,
                     requires_human_review=False,
                 )
@@ -102,7 +111,7 @@ class PolicyEngine:
                     decision_type=DecisionType.ESCALATE,
                     reason_codes=["MISSING_DAMAGE_EVIDENCE"],
                     policy_rules=["damaged_defective.requires_review_if_evidence_missing"],
-                    explanation="Damaged or defective claim needs human review because evidence is missing.",
+                    explanation="The item was reported as damaged or defective, but no supporting evidence was provided. A specialist will review this case.",
                     eligible=False,
                     requires_human_review=True,
                 )
@@ -111,7 +120,7 @@ class PolicyEngine:
                 decision_type=DecisionType.APPROVE,
                 reason_codes=["DAMAGED_DEFECTIVE_WITHIN_SPECIAL_WINDOW"],
                 policy_rules=["damaged_defective.special_window_days"],
-                explanation="Damaged or defective claim is eligible within the special handling window.",
+                explanation="The item was reported as damaged or defective within the eligible window.",
                 eligible=True,
                 requires_human_review=False,
             )
@@ -130,7 +139,7 @@ class PolicyEngine:
             decision_type=DecisionType.APPROVE,
             reason_codes=["WITHIN_STANDARD_RETURN_WINDOW"],
             policy_rules=["return_window_days"],
-            explanation="Request is within the standard return window for an eligible item.",
+            explanation="The item is within the return window and is eligible for a refund.",
             eligible=True,
             requires_human_review=False,
         )

@@ -129,6 +129,7 @@ class RuntimeTrace(BaseModel):
     latency_ms: int | None = None
     token_usage_json: str | None = None
     estimated_cost_usd: float | None = None
+    cost_label: str | None = None
     created_at: datetime
 
 
@@ -179,6 +180,7 @@ class CreateRuntimeTraceInput(BaseModel):
     latency_ms: int | None = None
     token_usage: dict[str, object] | None = None
     estimated_cost_usd: float | None = None
+    cost_label: str | None = None
 
 
 class CreateRuntimeToolCallInput(BaseModel):
@@ -309,6 +311,7 @@ class TraceResponse(BaseModel):
     latency_ms: int | None = None
     token_usage: dict[str, object] | None = None
     estimated_cost_usd: float | None = None
+    cost_label: str | None = None
     created_at: datetime
 
 

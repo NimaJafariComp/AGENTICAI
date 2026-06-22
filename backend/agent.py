@@ -29,6 +29,17 @@ NAME_PATTERNS = [
 ]
 REQUIRED_FIELDS = ("customer_email", "customer_name", "order_id", "item_id", "issue_type")
 
+# Words that signal the customer is explicitly requesting human escalation.
+_ESCALATION_TERMS: frozenset[str] = frozenset({
+    "escalate", "escalation", "human", "specialist", "supervisor",
+    "manager", "appeal", "re-evaluate", "reconsider", "second opinion",
+})
+# Block reasons from which a customer can request escalation.
+_ESCALATABLE_BLOCKS: frozenset[str] = frozenset({
+    "DENIED_HARD_DENIAL",
+    "DENIED_ESCALATABLE_DENIAL",
+})
+
 
 class RefundAgent:
     def __init__(
@@ -62,6 +73,47 @@ class RefundAgent:
         # ── Session decision guard ────────────────────────────────────────────
         gate = self.session_guard.evaluate(session_id)
         if not gate.allowed:
+            # If the customer explicitly requests escalation after a denial,
+            # perform it rather than repeating the "you can request escalation" message.
+            if (
+                gate.block_reason in _ESCALATABLE_BLOCKS
+                and self._infer_escalation_request(message)
+            ):
+                self.refund_tools.customer_requested_escalation(session_id=session_id)
+                response = self.llm_client.chat(
+                    session_id=session_id,
+                    system_prompt=SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": build_decision_prompt(
+                        decision_type="ESCALATE",
+                        explanation="The customer requested escalation for a specialist review.",
+                        reason_codes=["CUSTOMER_REQUESTED_ESCALATION"],
+                    )}],
+                )
+                self._log_llm_response(session_id=session_id, response=response, response_kind="escalation_confirmed")
+                total_latency_ms = self._elapsed_ms(turn_started_at)
+                self.trace_service.log_event(
+                    trace_id=f"trace-{uuid4()}",
+                    session_id=session_id,
+                    event_type="turn_summary",
+                    payload={
+                        "status": "completed",
+                        "decision_type": "ESCALATE",
+                        "chip_status": "ESCALATE",
+                        "block_reason": gate.block_reason,
+                        "reason_codes": ["CUSTOMER_REQUESTED_ESCALATION"],
+                    },
+                    latency_ms=total_latency_ms,
+                )
+                return AgentTurnResult(
+                    session_id=session_id,
+                    status="completed",
+                    assistant_message=response.content,
+                    decision_type="ESCALATE",
+                    latency_ms=total_latency_ms,
+                    token_usage=response.token_usage or {},
+                    estimated_cost_usd=response.estimated_cost_usd,
+                )
+
             response = self.llm_client.chat(
                 session_id=session_id,
                 system_prompt=SYSTEM_PROMPT,
@@ -72,6 +124,7 @@ class RefundAgent:
                         decision_type=gate.decision_type or "",
                         reason_codes=gate.reason_codes,
                         denial_category=gate.denial_category.value if gate.denial_category else None,
+                        customer_message=message,
                     ),
                 }],
             )
@@ -180,6 +233,7 @@ class RefundAgent:
             decision_type=eligibility["decision_type"],
             explanation=str(eligibility["explanation"]),
             reason_codes=list(eligibility["reason_codes"]),
+            customer_name=customer.name,
         )
         self._log_llm_response(session_id=session_id, response=response, response_kind="decision")
 
@@ -306,6 +360,7 @@ class RefundAgent:
         decision_type: str,
         explanation: str,
         reason_codes: list[str],
+        customer_name: str | None = None,
     ) -> ProviderResponse:
         return self.llm_client.chat(
             session_id=session_id,
@@ -317,6 +372,7 @@ class RefundAgent:
                         decision_type=decision_type,
                         explanation=explanation,
                         reason_codes=reason_codes,
+                        customer_name=customer_name,
                     ),
                 }
             ],
@@ -383,6 +439,7 @@ class RefundAgent:
             latency_ms=response.latency_ms,
             token_usage=response.token_usage,
             estimated_cost_usd=response.estimated_cost_usd,
+            cost_label=response.cost_label,
         )
 
     def _extract_fields(self, message: str) -> dict[str, str | None]:
@@ -430,6 +487,10 @@ class RefundAgent:
     def _infer_evidence_provided(self, message: str) -> bool:
         lowered = message.lower()
         return any(term in lowered for term in ("photo", "picture", "attached", "evidence", "screenshot"))
+
+    def _infer_escalation_request(self, message: str) -> bool:
+        lowered = message.lower()
+        return any(term in lowered for term in _ESCALATION_TERMS)
 
     def _infer_claim_inconsistent(self, message: str) -> bool:
         lowered = message.lower()
