@@ -580,12 +580,12 @@ def _inject_dark() -> None:
 .sidebar-brand {{ color:#e6edf3; }}
 .sidebar-tagline {{ color:#8b949e; }}
 .status-row span {{ color:#e6edf3 !important; }}
-.status-k {{ color:#484f58 !important; }}
+.status-k {{ color:#6e7681 !important; }}
 .ok   {{ color:#3fb950 !important; font-weight:600 !important; }}
 .warn {{ color:#e3b341 !important; font-weight:600 !important; }}
-.panel-label {{ color:#484f58; }}
+.panel-label {{ color:#6e7681; }}
 .session-card {{ border-bottom:1px solid var(--border) !important; }}
-.s-id   {{ color:#484f58 !important; }}
+.s-id   {{ color:#6e7681 !important; }}
 .s-email {{ color:#e6edf3 !important; }}
 .chip-approve      {{ background:rgba(63,185,80,0.10)  !important; color:#3fb950 !important; }}
 .chip-deny         {{ background:rgba(248,81,73,0.10)  !important; color:#f85149 !important; }}
@@ -604,9 +604,11 @@ def _inject_dark() -> None:
 .seal.escalate::before {{ background:#e3b341; }}
 .empty-state {{ border-color:var(--border-card); color:#8b949e; }}
 .es-title {{ color:#e6edf3; }}
-.intel-key {{ color:#484f58; }}
+.skeleton-dot {{ background:#6e7681 !important; }}
+.skeleton-row {{ border-color:rgba(230,237,243,0.16) !important; color:#8b949e !important; }}
+.intel-key {{ color:#6e7681; }}
 .case-fact {{ background:rgba(230,237,243,0.035) !important; border-left-color:#484f58 !important; }}
-.case-kv-key {{ color:#484f58 !important; }}
+.case-kv-key {{ color:#6e7681 !important; }}
 .case-kv-val {{ color:#e6edf3 !important; }}
 .case-kv-val.dim {{ color:#8b949e !important; }}
 .verdict-block          {{ border-left-color:#484f58; background:#21262d; }}
@@ -632,28 +634,29 @@ def _inject_dark() -> None:
 .tool-pending {{ color:#8b949e; background:rgba(139,148,158,0.14); }}
 .tool-count  {{ background:rgba(230,237,243,0.08) !important; color:#8b949e !important; }}
 .metric {{ background:#161b22 !important; border-color:var(--border-card) !important; }}
-.metric .k {{ color:#484f58 !important; }}
+.metric .k {{ color:#6e7681 !important; }}
 .metric .v {{ color:#e6edf3 !important; }}
 .metric.alert .v {{ color:#e3b341 !important; }}
 .audit-session-card {{ border-color:var(--border-card) !important; border-left-color:#484f58 !important; background:#161b22 !important; }}
 .audit-session-card.approve  {{ border-left-color:#3fb950 !important; }}
 .audit-session-card.deny     {{ border-left-color:#f85149 !important; }}
 .audit-session-card.escalate {{ border-left-color:#e3b341 !important; }}
-.tl-dot   {{ color:#484f58 !important; }}
+.tl-dot   {{ color:#6e7681 !important; }}
 .tl-title {{ color:#e6edf3 !important; }}
-.tl-meta  {{ color:#484f58 !important; }}
+.tl-meta  {{ color:#6e7681 !important; }}
 .policy-callout {{ background:rgba(68,147,248,0.10) !important; border-color:#4493f8 !important; color:#e6edf3 !important; }}
 .policy-callout strong {{ color:#4493f8 !important; }}
 .rule-row  {{ border-bottom-color:var(--border) !important; }}
-.rule-key  {{ color:#484f58 !important; }}
+.rule-key  {{ color:#6e7681 !important; }}
 .rule-val  {{ color:#e6edf3 !important; }}
 .rule-note {{ color:#8b949e !important; }}
 .stButton button, [data-testid="stBaseButton-secondary"] {{ background:#161b22 !important; color:#e6edf3 !important; border-color:var(--border-input) !important; }}
 .stButton button:hover, [data-testid="stBaseButton-secondary"]:hover {{ border-color:#4493f8 !important; color:#4493f8 !important; }}
 .stButton button:focus-visible, [data-testid^="stBaseButton"]:focus-visible {{ box-shadow:0 0 0 2px #4493f8 !important; }}
 [data-testid="stBaseButton-primary"], .stButton button[kind="primary"] {{ background:#4493f8 !important; border-color:#4493f8 !important; }}
-[data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input {{ background:#161b22 !important; color:#e6edf3 !important; border-color:var(--border-input) !important; }}
-[data-testid="stTextArea"] textarea::placeholder {{ color:#484f58 !important; }}
+[data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input {{ background:#0d1117 !important; color:#e6edf3 !important; border-color:rgba(230,237,243,0.26) !important; }}
+[data-testid="stTextArea"] textarea::placeholder {{ color:#6e7681 !important; }}
+[data-testid="stTextArea"] textarea:focus, [data-testid="stTextInput"] input:focus {{ border-color:#4493f8 !important; box-shadow:0 0 0 2px rgba(68,147,248,0.22) !important; }}
 [data-baseweb="select"] > div {{ background:#161b22 !important; color:#e6edf3 !important; border-color:var(--border-input) !important; }}
 [data-testid="stTabs"] [data-baseweb="tab-list"] {{ border-bottom:1px solid var(--border) !important; }}
 [data-testid="stTabs"] [data-baseweb="tab"] {{ color:#8b949e !important; }}
