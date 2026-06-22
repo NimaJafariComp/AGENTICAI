@@ -1,4 +1,4 @@
-"""Audit Console: sessions listed newest-first, each expandable for full trace."""
+"""Audit Console: sessions listed newest-first with one active trace detail."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -32,6 +32,7 @@ def _short_ts(iso: str) -> str:
 
 
 _DETAIL_CACHE_KEY = "_audit_detail_cache"
+_ACTIVE_SESSION_KEY = "_audit_active_session_id"
 
 
 def _cached_detail(sid: str) -> dict | None:
@@ -42,9 +43,57 @@ def _cached_detail(sid: str) -> dict | None:
     return cache[sid]
 
 
+def _session_label(sess: dict[str, Any]) -> str:
+    sid = sess["session_id"]
+    email = sess.get("customer_email") or "no email"
+    ts = _short_ts(sess.get("created_at", ""))
+    ts_part = f"  ·  {ts}" if ts else ""
+    return f"#{sid[-8:]}  ·  {email}{ts_part}"
+
+
+def _session_status(detail: dict[str, Any] | None) -> tuple[str, str]:
+    final_decisions = (detail or {}).get("final_decisions", [])
+    tool_calls = (detail or {}).get("tool_calls", [])
+    traces = (detail or {}).get("traces", [])
+
+    if final_decisions:
+        decision_type = final_decisions[-1]["decision_type"]
+        return decision_type.lower(), decision_type
+    if any(call["status"] == "failed" for call in tool_calls):
+        return "errored", "ERRORED"
+    if tool_calls or traces:
+        return "incomplete", "INCOMPLETE"
+    return "no-activity", "NO ACTIVITY"
+
+
+def _render_session_button(
+    *,
+    sid: str,
+    label: str,
+    status_cls: str,
+    status_label: str,
+    selected: bool,
+) -> None:
+    card_key = f"audit_session_card_{status_cls}_{'active' if selected else 'idle'}_{sid[-8:]}"
+
+    with st.container(key=card_key):
+        if selected:
+            st.markdown(
+                f'<div class="audit-session-card {status_cls} active">'
+                f'<span class="s-email">{label}</span>'
+                f'<span class="chip chip-{status_cls} audit-status-chip">{status_label}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        elif st.button(label, key=f"audit_session_{sid}", use_container_width=True):
+            st.session_state[_ACTIVE_SESSION_KEY] = sid
+            st.rerun()
+
+
 def main() -> None:
+    st.markdown('<span id="_audit_marker" style="display:none"></span>', unsafe_allow_html=True)
     st.markdown("### Audit Console")
-    st.caption("Sessions newest first. Expand any row for full trace.")
+    st.caption("Sessions newest first. Select any row for full trace.")
 
     sessions, err = fetch_sessions()
     if err:
@@ -61,20 +110,40 @@ def main() -> None:
         )
         return
 
-    for sess in reversed(sessions):
-        sid   = sess["session_id"]
-        email = sess.get("customer_email") or "no email"
-        ts    = _short_ts(sess.get("created_at", ""))
-        ts_part = f"  ·  {ts}" if ts else ""
+    ordered_sessions = list(reversed(sessions))
+    labels = {sess["session_id"]: _session_label(sess) for sess in ordered_sessions}
+    session_ids = list(labels)
 
-        row_label = f"#{sid[-8:]}  ·  {email}{ts_part}"
+    current_sid = st.session_state.get(_ACTIVE_SESSION_KEY)
+    selected_sid = current_sid if current_sid in labels else session_ids[0]
+    st.session_state[_ACTIVE_SESSION_KEY] = selected_sid
 
-        with st.expander(row_label, expanded=False):
+    list_col, detail_col = st.columns([0.28, 0.72], gap="large")
+
+    with list_col:
+        st.markdown('<span id="_audit_list_marker" style="display:none"></span>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-label">Recent sessions</div>', unsafe_allow_html=True)
+        for sid in session_ids:
             detail = _cached_detail(sid)
-            if detail:
-                _render_detail(detail)
-            else:
-                st.caption("Could not load session detail.")
+            status_cls, status_label = _session_status(detail)
+            label = labels[sid]
+            _render_session_button(
+                sid=sid,
+                label=label,
+                status_cls=status_cls,
+                status_label=status_label,
+                selected=sid == selected_sid,
+            )
+
+    with detail_col:
+        st.markdown('<span id="_audit_detail_marker" style="display:none"></span>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-label">Trace detail</div>', unsafe_allow_html=True)
+        st.caption(f"Showing {labels[selected_sid]} from {len(session_ids)} sessions.")
+        detail = _cached_detail(selected_sid)
+        if detail:
+            _render_detail(detail)
+        else:
+            st.caption("Could not load session detail.")
 
 
 def _render_detail(detail: dict[str, Any]) -> None:
