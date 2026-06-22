@@ -10,7 +10,7 @@ Validated now:
 
 - local FastAPI backend starts successfully
 - local Streamlit UI starts successfully
-- test suite passes: `27 passed`
+- test suite passes: `34 passed`
 - deterministic policy engine is the only authority for refund outcomes
 - protected terminal actions require backend-minted `decision_id` values
 - direct `MockProvider` mode works
@@ -313,6 +313,24 @@ Unknown reason codes default to `HARD_DENIAL` (conservative).
 | `backend/schemas.py` | `DenialCategory` enum (`HARD`, `CORRECTABLE`, `ESCALATABLE`) |
 | `backend/prompting.py` | `build_blocked_response_prompt` — generates the LLM context for each block type |
 | `backend/agent.py` | Guard is evaluated at the top of `process_user_message` before any intake runs |
+
+## Before production
+
+The local demo is intentionally scoped. Shipping to production requires the following:
+
+| Area | Recommendation |
+| --- | --- |
+| Auth | Add OAuth2/JWT for the chat and admin endpoints. Gate the admin trace endpoint to internal staff only. |
+| Rate limiting | Add per-IP and per-session throttles at the API gateway on `/api/chat`. |
+| Secrets | Move API keys out of `.env` into a secrets manager (AWS Secrets Manager, GCP, Azure Key Vault) and inject at runtime. |
+| PII redaction | Redact or hash customer emails and names before writing to the trace store or forwarding to external observability tools. |
+| Observability | Emit structured spans and logs to an external stack (Datadog, Honeycomb, OpenTelemetry). The trace schema already captures latency, tokens, and cost per event — it is ready to forward. |
+| Persistent storage | Replace the local SQLite file with a managed PostgreSQL instance with backups and Alembic migrations. |
+| Model monitoring | Pin the LLM to a specific model ID and log provider response headers per decision for an immutable audit trail. |
+| Human-review workflow | Integrate escalated cases with a ticketing system (Zendesk, Intercom) and add a resolution state to `final_decisions`. |
+| HA / containerization | Containerize with Docker and deploy behind a load balancer with health-check probes. |
+| LLM resilience | Add exponential backoff with jitter and a circuit breaker for provider 429/5xx responses. |
+| GDPR / CCPA | Implement a data subject delete path that scrubs PII from the trace store on request. |
 
 ## Troubleshooting
 
